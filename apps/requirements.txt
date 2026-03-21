@@ -1,0 +1,8 @@
+# AI service (menu extraction)
+pdf2image
+pillow
+google-generativeai
+python-dotenv
+
+# QR service (table QR generation)
+qrcode[pil]

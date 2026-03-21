@@ -1,0 +1,2 @@
+# SPA fallback: serve index.html for all routes (including /order/* QR deep links)
+/*    /index.html   200

@@ -1,0 +1,3389 @@
+{
+  "currency": "\u20b9",
+  "palette": {
+    "primary": "#738053",
+    "secondary": "#332d29",
+    "background": "#f8fbf3",
+    "accent": "#e1ddcb"
+  },
+  "branding": {
+    "restaurantName": "OONA",
+    "tagline": "THE ONE",
+    "welcomeMessage": "Welcome to Oona, The One. Discover our authentic Indian Tandoori Starters.",
+    "preparingMessage": "Your Oona order is being prepared with fresh, quality ingredients.",
+    "orderNumberPrefix": "OONA-"
+  },
+  "categories": [
+    {
+      "id": "tandoori-starters-vegetarian",
+      "name": "Tandoori Starters Vegetarian",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "OVEN-ROASTED BABY POTATOES",
+          "diet": "veg",
+          "description": "Oven-roast baby potatoes marinated with hung curd, Indian spices and cooked in clay oven",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "PANEER TIKKA SHASLIK",
+          "diet": "veg",
+          "description": "Cottage cheese marinated in hung curd, tandoori spices and cooked in clay oven",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "KURKURE PANEER TIKKA",
+          "diet": "veg",
+          "description": "Paneer made with chef's special recipe",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "BASIL MALAI PANEER TIKKA",
+          "diet": "veg",
+          "description": "Cottage cheese marinated in creamy cheese and cashew nut paste and basil",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "BHUTTE DI SEEKH",
+          "diet": "veg",
+          "description": "Minced veg, corn and cottage cheese",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "CHAMAN MALAI GILAAFI SEEKH",
+          "diet": "veg",
+          "description": "Mashed cottage cheese marinated with Wazwan's special masala",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "MORSELS MUSHROOM GALOUTI",
+          "diet": "veg",
+          "description": "Minced mushrooms tikki served with Lifafa Paratha",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "OONA BIG PLATTER",
+          "diet": "veg",
+          "description": "Assortment of veg delicacies",
+          "variants": [
+            {
+              "type": "full",
+              "price": 645
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "tandoori-starters-non-vegetarian",
+      "name": "Tandoori Starters Non-Vegetarian",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Tandoori Chicken",
+          "diet": "nonveg",
+          "description": "An all-time favourite clay oven-roasted chicken",
+          "variants": [
+            {
+              "type": "half",
+              "price": 350
+            },
+            {
+              "type": "full",
+              "price": 600
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Moroccan Tandoori Chicken",
+          "diet": "nonveg",
+          "description": "Chicken with a twist",
+          "variants": [
+            {
+              "type": "half",
+              "price": 350
+            },
+            {
+              "type": "full",
+              "price": 600
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Jalapeno Malai Tikka",
+          "diet": "nonveg",
+          "description": "Jalapeno and cheese stuffed chicken cooked in clay oven",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Makhmali Creamy Chicken Tikka",
+          "diet": "nonveg",
+          "description": "Boneless chicken marinated with cashew paste and cheese",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Oregano Chicken Tikka",
+          "diet": "nonveg",
+          "description": "A fusion chicken tikka",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Murg Amritsari Tikka",
+          "diet": "nonveg",
+          "description": "Spicy boneless chicken marinated in hung curd and spicy herbs",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Dum Khas Tangri Kebab",
+          "diet": "nonveg",
+          "description": "A must-try tangri kebab",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Rosemary Mutton Seekh",
+          "diet": "nonveg",
+          "description": "Minced juicy tender mutton seekh served with Lebanese pita and hummus",
+          "variants": [
+            {
+              "type": "full",
+              "price": 380
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "Roast Lamb Chops",
+          "diet": "nonveg",
+          "description": "Roasted lamb marinated with Indian spices and finished in clay oven",
+          "variants": [
+            {
+              "type": "full",
+              "price": 380
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "Galouti Kebab",
+          "diet": "nonveg",
+          "description": "Succulent minced mutton keema served with lifafa paratha",
+          "variants": [
+            {
+              "type": "full",
+              "price": 380
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-11",
+          "name": "Pepper Lamb",
+          "diet": "nonveg",
+          "description": "Pan-tossed lamb made in South Indian style",
+          "variants": [
+            {
+              "type": "full",
+              "price": 380
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-12",
+          "name": "Ajwaini Fish Tikka",
+          "diet": "seafood",
+          "description": "Tender fillets of fish marinated with hung curd and tandoori spices",
+          "variants": [
+            {
+              "type": "full",
+              "price": 420
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-13",
+          "name": "Lemon Butter Dill Fish Tikka",
+          "diet": "seafood",
+          "description": "Fish tikka marinated in lemon butter garlic",
+          "variants": [
+            {
+              "type": "full",
+              "price": 420
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-14",
+          "name": "Oona Big Platter",
+          "diet": "nonveg",
+          "description": "Assortment of non veg delicacies",
+          "variants": [
+            {
+              "type": "full",
+              "price": 665
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "main-course-vegetarian",
+      "name": "Main Course (Indian) Vegetarian",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Paneer Makhani",
+          "diet": "veg",
+          "description": "An all-time favourite dish",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Paneer Tawa Pyaza",
+          "diet": "veg",
+          "description": "Chunks of paneer cooked in thick onion gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Paneer Kadhai Khurchan",
+          "diet": "veg",
+          "description": "Finger-sized cottage cheese cooked in chop masala",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Hari Mirch Paneer Tikka Masala",
+          "diet": "veg",
+          "description": "Roasted paneer prepared in mint, coriander and smooth chilli gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Paneer Dhingri Ke Jugalband",
+          "diet": "veg",
+          "description": "Chunks of paneer and mushroom cooked in medium spicy gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Paneer Lababdar",
+          "diet": "veg",
+          "description": "Cottage cheese cooked with chopped onion and capsicum",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Tawa Mushroom Masala",
+          "diet": "veg",
+          "description": "A distinct-flavour dish served on tawa",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Mirch Mushroom Korma",
+          "diet": "veg",
+          "description": "Mushroom prepared in cashew and curd fine gravy with chef's special spices",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "Mattar Mushroom Bhutta",
+          "diet": "veg",
+          "description": "Corn, green peas and mushroom cooked in veg gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "Maratha Kadhai Veg",
+          "diet": "veg",
+          "description": "A distinctive Maharashtrian flavoured dish",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-11",
+          "name": "Al Verdure",
+          "diet": "veg",
+          "description": "A fusion mix vegetable",
+          "variants": [
+            {
+              "type": "full",
+              "price": 290
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-12",
+          "name": "Veg Makhani",
+          "diet": "veg",
+          "description": "Mixed veg cooked in smooth makhani gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 310
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-13",
+          "name": "Malai Kofta",
+          "diet": "veg",
+          "description": "Small balls of cottage cheese and potato cooked in creamy gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-14",
+          "name": "Veg Maratha Kofta",
+          "diet": "veg",
+          "description": "Mixed veg kofta balls cooked in maratha gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "indian-vegetarian",
+      "name": "Indian Vegetarian",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Cheese Corn Kofta",
+          "diet": "veg",
+          "description": "Kofta balls stuffed with cheese and cooked in cheesy gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Hing Jeere Ke Aloo",
+          "diet": "veg",
+          "description": "Classic aloo made with a twist",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Amritsari Chole",
+          "diet": "veg",
+          "description": "A flavour of Punjab served with Amritsari Kulcha",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Dal Punjabi Tadka",
+          "diet": "veg",
+          "description": "A wholesome yellow dal with a Punjabi twist",
+          "variants": [
+            {
+              "type": "full",
+              "price": 250
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Oona Dal Bukhara",
+          "diet": "veg",
+          "description": "A rich and flavourful preparation of black gram",
+          "variants": [
+            {
+              "type": "full",
+              "price": 290
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "indian-non-vegetarian",
+      "name": "Main Course (Indian) Non Vegetarian",
+      "items": [
+        {
+          "id": "item-6",
+          "name": "Butter Chicken",
+          "diet": "nonveg",
+          "description": "Classic old-fashioned buttery chicken with options of shredded, tikka and bone",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Kukad Junglee Bhatti",
+          "diet": "nonveg",
+          "description": "Bone chicken cooked in tomato, onion gravy and chef's special herbs",
+          "variants": [
+            {
+              "type": "half",
+              "price": 365
+            },
+            {
+              "type": "full",
+              "price": 600
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Chicken Changeji Korma",
+          "diet": "nonveg",
+          "description": "Roasted chicken prepared in purani DILLI style gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "Murg Nihari",
+          "diet": "nonveg",
+          "description": "Bone chicken made in distinctive Lucknowi flavour",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "Cream Chicken",
+          "diet": "nonveg",
+          "description": "A silky and smooth gravy of roasted chicken",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-11",
+          "name": "Chicken Tikka Butter Masala",
+          "diet": "nonveg",
+          "description": "Old school favourite",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-12",
+          "name": "Chicken Tikka Tawa Masala",
+          "diet": "nonveg",
+          "description": "Boneless pieces of chicken cooked in thick onion and tomato gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "chicken",
+      "name": "Chicken",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Chicken Lababdar",
+          "diet": "nonveg",
+          "description": "Boneless pieces of chicken cooked with chopped onion and capsicum",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Chicken Dhaniwal",
+          "diet": "nonveg",
+          "description": "Boneless chicken cooked in spicy gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Chicken Mirch Elaichi Korma",
+          "diet": "nonveg",
+          "description": "Boneless chicken cooked in cardamom and spicy gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Dum Khas Tangri Masala",
+          "diet": "nonveg",
+          "description": "Four pieces of roasted tangri served in onion and tomato gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "gosht",
+      "name": "Gosht",
+      "items": [
+        {
+          "id": "item-5",
+          "name": "Cooker Rosemary Mutton Curry",
+          "diet": "nonveg",
+          "description": "Soft mutton pieces cooked in thin gravy...with a twist",
+          "variants": [
+            {
+              "type": "full",
+              "price": 390
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Gosht Rogan Josh",
+          "diet": "nonveg",
+          "description": "Juicy and tender mutton cooked in special aromatic thin gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 390
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Adraki Mutton Chap Masala",
+          "diet": "nonveg",
+          "description": "Mutton cooked in adraki gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 390
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Methi Mutton Masala",
+          "diet": "nonveg",
+          "description": "Methi-flavoured mutton",
+          "variants": [
+            {
+              "type": "full",
+              "price": 390
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "seafood",
+      "name": "Sea Food",
+      "items": [
+        {
+          "id": "item-9",
+          "name": "Fish Punjabi Masala",
+          "diet": "seafood",
+          "description": "Fish cooked in thick onion gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 430
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "Fish Malwani Curry",
+          "diet": "seafood",
+          "description": "Juicy and tender fish cooked in special aromatic thin gravy",
+          "variants": [
+            {
+              "type": "full",
+              "price": 430
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-11",
+          "name": "Prawn Malabari Masala",
+          "diet": "seafood",
+          "description": "South Indian style prawns served with Parotha",
+          "variants": [
+            {
+              "type": "full",
+              "price": 480
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "rice",
+      "name": "Rice",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "SUBZ BIRYANI",
+          "diet": "veg",
+          "description": "Mixed vegetable dum biryani",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "CHICKEN BIRYANI",
+          "diet": "nonveg",
+          "description": "Authentic dum biryani from the streets of Kolkata",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "MUTTON BIRYANI",
+          "diet": "nonveg",
+          "description": "Authentic dum biryani from Kolkata",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "VEG NAVRATAN PULAO",
+          "diet": "veg",
+          "description": "Mixed vegetable pulao",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "JEERA RICE",
+          "diet": "veg",
+          "description": "A fragrant rice with an earthy aroma infused by cumin seeds",
+          "variants": [
+            {
+              "type": "full",
+              "price": 190
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "STEAMED RICE",
+          "diet": "veg",
+          "description": "Plain basmati rice",
+          "variants": [
+            {
+              "type": "full",
+              "price": 150
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "breads",
+      "name": "Breads",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Tandoori Roti",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 35
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Butter Tandoori Roti",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 45
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Butter Naan",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 60
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Zaatar Naan",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 70
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Garlic Butter Naan",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 75
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Cheese Garlic Butter Naan",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 85
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Mattar Masala Kulcha",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 70
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Lal Mirch Paratha",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 70
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "Laccha Paratha",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 70
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "Kastoori Paratha",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 70
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-11",
+          "name": "Chur Chur Paratha",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 70
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-12",
+          "name": "Oregano Chilli Flakes Paratha",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 75
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "accompaniments",
+      "name": "Accompaniments",
+      "items": [
+        {
+          "id": "item-13",
+          "name": "Green Salad",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 110
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-14",
+          "name": "Raita",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 90
+            }
+          ],
+          "options": [
+            "Mix",
+            "Pineapple",
+            "Bhurani",
+            "Boondi"
+          ]
+        },
+        {
+          "id": "item-15",
+          "name": "Cranberry Raita",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 150
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "soups",
+      "name": "Soups",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Four Treasure",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 140
+            },
+            {
+              "type": "full",
+              "price": 165
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Tom Kha",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 140
+            },
+            {
+              "type": "full",
+              "price": 165
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Lemon Coriander",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 140
+            },
+            {
+              "type": "full",
+              "price": 165
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Broccoli Water Chestnut Soup",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 140
+            },
+            {
+              "type": "full",
+              "price": 165
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Manchow",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 140
+            },
+            {
+              "type": "full",
+              "price": 165
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Sweet Corn",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 140
+            },
+            {
+              "type": "full",
+              "price": 165
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "starters-veg",
+      "name": "Starters Veg",
+      "items": [
+        {
+          "id": "item-7",
+          "name": "Water Chestnut Crispy Rice",
+          "diet": "veg",
+          "description": "A must-try chef's speciality",
+          "variants": [
+            {
+              "type": "full",
+              "price": 275
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Sambal Paneer",
+          "diet": "veg",
+          "description": "Paneer cubes tossed in sambal sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "Pan-Fried Chilli Paneer",
+          "diet": "veg",
+          "description": "Shallow-fried cottage cheese tossed in sweet chilli sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "Spicy Basil Paneer",
+          "diet": "veg",
+          "description": "Basil-flavoured paneer",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-11",
+          "name": "Cottage Cheese Fa-Fa",
+          "diet": "veg",
+          "description": "A coconut milk-flavoured paneer with a twist",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-12",
+          "name": "Crispy Honey Chilli Lotus Chips",
+          "diet": "veg",
+          "description": "Crispy fried lotus stem served with chef's special sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-13",
+          "name": "Burnt Garlic Corn Cubes",
+          "diet": "veg",
+          "description": "Corn cubes tossed in burnt garlic, salt & pepper. Chef's special",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "main-dishes",
+      "name": "Main Dishes",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Pan-Fried Chilli Fish",
+          "diet": "seafood",
+          "description": "Slice fish pan-fried and tossed in sweet chilli sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 420
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Dynamite Prawns",
+          "diet": "seafood",
+          "description": "Prawns served in chef's special style",
+          "variants": [
+            {
+              "type": "full",
+              "price": 450
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Chilli Garlic Prawns",
+          "diet": "seafood",
+          "description": "Prawns tossed with chilli and garlic",
+          "variants": [
+            {
+              "type": "full",
+              "price": 450
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "dim-sums-veg",
+      "name": "Dim Sums Veg",
+      "items": [
+        {
+          "id": "item-4",
+          "name": "Cream Cheese Mushroom Dim Sum",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 265
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Vegetable Crystal Dim Sum",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 265
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Corn and Waterchestnut Dim Sum",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 265
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Vegetable Basil Dim Sum",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 265
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Zucchini Corn Dim Sum",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 265
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "Edamame Dim Sum",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 355
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "dim-sums-non-veg",
+      "name": "Dim Sums Non Veg",
+      "items": [
+        {
+          "id": "item-10",
+          "name": "Chicken Coriander Dim Sum",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 295
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-11",
+          "name": "Chicken Har Gao Dim Sum",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 295
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-12",
+          "name": "Chicken Gyoza",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 295
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-13",
+          "name": "Prawn Har Gao Dim Sum",
+          "diet": "seafood",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 345
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-14",
+          "name": "Seafood Dim Sum",
+          "diet": "seafood",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 345
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-15",
+          "name": "Prawn Dim Sum",
+          "diet": "seafood",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 355
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "bao",
+      "name": "Bao",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Multiple Mushroom Bao",
+          "diet": "veg",
+          "description": "Steamed open bao served with multiple mushrooms",
+          "variants": [
+            {
+              "type": "full",
+              "price": 250
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Spicy Basil Cottage Cheese Bao",
+          "diet": "veg",
+          "description": "Cottage cheese bao served with spicy basil sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 250
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Jackfruit Bao",
+          "diet": "veg",
+          "description": "A fusion-based open bao",
+          "variants": [
+            {
+              "type": "full",
+              "price": 250
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Just Chicken Bao",
+          "diet": "nonveg",
+          "description": "Chicken stuffed bao",
+          "variants": [
+            {
+              "type": "full",
+              "price": 280
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "sushi",
+      "name": "Sushi",
+      "items": [
+        {
+          "id": "item-5",
+          "name": "California Veg Sushi",
+          "diet": "veg",
+          "description": "Cucumber and pickled carrots, zucchini topped with Japanese Mayo",
+          "variants": [
+            {
+              "type": "full",
+              "price": 425
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Crunchy Veg Maki",
+          "diet": "veg",
+          "description": "Three bell pepper and zucchini topped with red spicy mayo",
+          "variants": [
+            {
+              "type": "full",
+              "price": 425
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Cream Cheese Mushroom",
+          "diet": "veg",
+          "description": "Mushroom and cream cheese sushi",
+          "variants": [
+            {
+              "type": "full",
+              "price": 445
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Spicy Grill Chicken Sushi",
+          "diet": "nonveg",
+          "description": "Grill chicken with smoky teriyaki and sesame sheet",
+          "variants": [
+            {
+              "type": "full",
+              "price": 450
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "Kasto Chicken Sushi",
+          "diet": "nonveg",
+          "description": "Deep fried chicken topped with spicy mayo",
+          "variants": [
+            {
+              "type": "full",
+              "price": 450
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "Prawn Tempura Sushi",
+          "diet": "seafood",
+          "description": "Prawn tempura with mayo and tobiko",
+          "variants": [
+            {
+              "type": "full",
+              "price": 525
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-11",
+          "name": "Salmon and Avocado Sushi",
+          "diet": "seafood",
+          "description": "Sushi roll containing avocado and salmon",
+          "variants": [
+            {
+              "type": "full",
+              "price": 720
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "rice-or-noodles",
+      "name": "Rice or Noodles",
+      "items": [
+        {
+          "id": "item-1-veg",
+          "name": "Wok-Tossed Fried Rice (Veg)",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 195
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-1-chicken",
+          "name": "Wok-Tossed Fried Rice (Chicken)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 210
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-1-mix",
+          "name": "Wok-Tossed Fried Rice (Mix)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 225
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2-veg",
+          "name": "Schezwan Rice (Veg)",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 210
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2-chicken",
+          "name": "Schezwan Rice (Chicken)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 225
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2-mix",
+          "name": "Schezwan Rice (Mix)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 235
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3-veg",
+          "name": "Ginger Capsicum (Veg)",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 210
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3-chicken",
+          "name": "Ginger Capsicum (Chicken)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 225
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3-mix",
+          "name": "Ginger Capsicum (Mix)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 235
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4-veg",
+          "name": "Korean Fried Rice (Pan Asian) (Veg)",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 230
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4-chicken",
+          "name": "Korean Fried Rice (Pan Asian) (Chicken)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 255
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4-mix",
+          "name": "Korean Fried Rice (Pan Asian) (Mix)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5-veg",
+          "name": "Shiitake Mushroom Fried Rice (Veg)",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 220
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5-chicken",
+          "name": "Shiitake Mushroom Fried Rice (Chicken)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 235
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5-mix",
+          "name": "Shiitake Mushroom Fried Rice (Mix)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 255
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6-chicken",
+          "name": "Nasi Goreng (Chicken)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 355
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6-mix",
+          "name": "Nasi Goreng (Mix)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 395
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7-veg",
+          "name": "Wok-Tossed Hakka Noodles (Veg)",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 190
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7-chicken",
+          "name": "Wok-Tossed Hakka Noodles (Chicken)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 210
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7-mix",
+          "name": "Wok-Tossed Hakka Noodles (Mix)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 225
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8-veg",
+          "name": "Chilli Garlic (Veg)",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 210
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8-chicken",
+          "name": "Chilli Garlic (Chicken)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 225
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8-mix",
+          "name": "Chilli Garlic (Mix)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 235
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "noodles",
+      "name": "Noodles",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "STIR FRY UDON NOODLES (VEG)",
+          "diet": "veg",
+          "description": "Wheat Noodles",
+          "variants": [
+            {
+              "type": "full",
+              "price": 235
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "STIR FRY UDON NOODLES (CHICKEN)",
+          "diet": "nonveg",
+          "description": "Wheat Noodles",
+          "variants": [
+            {
+              "type": "full",
+              "price": 245
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "STIR FRY UDON NOODLES (MIX)",
+          "diet": "nonveg",
+          "description": "Wheat Noodles",
+          "variants": [
+            {
+              "type": "full",
+              "price": 265
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "CURRY FLAVOURED NOODLES (VEG)",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 225
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "CURRY FLAVOURED NOODLES (CHICKEN)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 235
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "CURRY FLAVOURED NOODLES (MIX)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 255
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "ZED NOODLES (VEG)",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 210
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "ZED NOODLES (CHICKEN)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 225
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "ZED NOODLES (MIX)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 235
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "PAN-FRIED NOODLES",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "qtr",
+              "price": 240
+            },
+            {
+              "type": "half",
+              "price": 255
+            },
+            {
+              "type": "full",
+              "price": 265
+            }
+          ],
+          "options": [
+            "Cantonese",
+            "Chilli Soya"
+          ]
+        },
+        {
+          "id": "item-11",
+          "name": "KRA PAO GAI",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": [
+            "Cantonese",
+            "Chilli Soya"
+          ]
+        },
+        {
+          "id": "item-12",
+          "name": "CHOPSUEY",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "qtr",
+              "price": 205
+            },
+            {
+              "type": "half",
+              "price": 225
+            },
+            {
+              "type": "full",
+              "price": 240
+            }
+          ],
+          "options": [
+            "American",
+            "Chinese"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "curries",
+      "name": "Curries",
+      "items": [
+        {
+          "id": "item-13",
+          "name": "GREEN THAI CURRY",
+          "diet": "veg",
+          "description": "Thai curry served with steamed rice",
+          "variants": [
+            {
+              "type": "half",
+              "price": 320
+            },
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-14",
+          "name": "RED THAI CURRY",
+          "diet": "veg",
+          "description": "Thai curry served with steamed rice",
+          "variants": [
+            {
+              "type": "half",
+              "price": 320
+            },
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "side-orders-veg",
+      "name": "Side Orders (Veg)",
+      "items": [
+        {
+          "id": "item-15",
+          "name": "PANEER IN CHOICE OF SAUCE",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": [
+            "Hot garlic",
+            "Black bean",
+            "Black pepper"
+          ]
+        },
+        {
+          "id": "item-16",
+          "name": "COTTAGE CHEESE CHINESE PARSLEY",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "veg-dishes",
+      "name": "Vegetarian Dishes",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Exotic Veg in Ginger Wine Sauce",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Exotic Veg in Hot Basil Sauce",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Classic Veg Manchurian",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 340
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "side-orders-non-veg",
+      "name": "Side Orders Non Veg",
+      "items": [
+        {
+          "id": "item-4",
+          "name": "Tousi Chicken",
+          "diet": "nonveg",
+          "description": "Sliced chicken tossed in black bean, chilli paste, soya, wine and sesame",
+          "variants": [
+            {
+              "type": "full",
+              "price": 355
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Tsingoi Chicken",
+          "diet": "nonveg",
+          "description": "Diced chicken tossed with dry chillies, chilli paste and sesame oil",
+          "variants": [
+            {
+              "type": "full",
+              "price": 355
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Kung Pao Chicken",
+          "diet": "nonveg",
+          "description": "Diced chicken tossed with dry red chillies, bell pepper and cashew nut",
+          "variants": [
+            {
+              "type": "full",
+              "price": 355
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Slice Chicken with Mushroom and Veg",
+          "diet": "nonveg",
+          "description": "Sliced chicken tossed with veggies and shiitake mushroom",
+          "variants": [
+            {
+              "type": "full",
+              "price": 355
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Slice Chicken in Choice of Sauce",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 355
+            }
+          ],
+          "options": [
+            "Oyster Sauce",
+            "Hot Garlic Sauce",
+            "Black Bean",
+            "Black Pepper"
+          ]
+        },
+        {
+          "id": "item-9",
+          "name": "Fish in Chinese Parsley Sauce",
+          "diet": "seafood",
+          "description": "Sliced fish tossed in ginger parsley paste",
+          "variants": [
+            {
+              "type": "full",
+              "price": 430
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "Asian Chilli Mustard Fish",
+          "diet": "seafood",
+          "description": "Sliced fish made in homemade mustard sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 430
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-11",
+          "name": "Fish in Choice of Sauce",
+          "diet": "seafood",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 430
+            }
+          ],
+          "options": [
+            "Ginger Wine Sauce",
+            "Hot Garlic",
+            "Black Bean"
+          ]
+        },
+        {
+          "id": "item-12",
+          "name": "Prawns Hubai Sauce",
+          "diet": "seafood",
+          "description": "Prawns tossed in garlic, pickled onion and chilli black beans",
+          "variants": [
+            {
+              "type": "full",
+              "price": 455
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-13",
+          "name": "Prawns in Sambal Oelek Sauce",
+          "diet": "seafood",
+          "description": "Prawns in sambal sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 455
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "salads",
+      "name": "Salads",
+      "items": [
+        {
+          "id": "item-3",
+          "name": "Orange Fennel Salad",
+          "diet": "",
+          "description": "Fresh garden leaf and fennel roots with walnut orange dressing",
+          "variants": [
+            {
+              "type": "half",
+              "price": 220
+            },
+            {
+              "type": "full",
+              "price": 275
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Beetroot Feta Salad",
+          "diet": "",
+          "description": "Pickled beetroot and iceberg lettuce, beetroot dressing and feta cheese",
+          "variants": [
+            {
+              "type": "half",
+              "price": 220
+            },
+            {
+              "type": "full",
+              "price": 275
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Ceaser Salad",
+          "diet": "",
+          "description": "Romaine lettuce tossed in classic creamy dressing topped with parmesan and crunchy croutons",
+          "variants": [
+            {
+              "type": "half",
+              "price": 220
+            },
+            {
+              "type": "full",
+              "price": 275
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Caprese Salad",
+          "diet": "",
+          "description": "Italian tomato fresh mozzarella and pesto dressing",
+          "variants": [
+            {
+              "type": "half",
+              "price": 220
+            },
+            {
+              "type": "full",
+              "price": 275
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "fries",
+      "name": "Fries",
+      "items": [
+        {
+          "id": "item-7",
+          "name": "Classic Fries",
+          "diet": "",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 125
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Peri Peri Fries",
+          "diet": "",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 155
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "Cheesy Fries",
+          "diet": "",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 165
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "Chakhna Platter",
+          "diet": "",
+          "description": "Consists of four varieties of nuts",
+          "variants": [
+            {
+              "type": "full",
+              "price": 250
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "veg-appetizers",
+      "name": "Appetizers (Veg)",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "SCRAMBLED MUSHROOM ON TOASTED PITA",
+          "diet": "veg",
+          "description": "Button mushroom cooked in cheese sauce, thyme topped with balsamic glaze",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "ZUCCHINI FRITTERS",
+          "diet": "veg",
+          "description": "Stuffed gherkins, jalapenos, basil and fresh mozzarella, panko fried served with ramsco dip",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "MUSHROOM CROQUETTE",
+          "diet": "veg",
+          "description": "Crispy bread crumbs coated-flour with mushroom and cheese stuffed served with garlic dip",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "RAGGI NACHOS",
+          "diet": "veg",
+          "description": "Home-made nachos served with salsa and sour cream",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "GARLIC BREAD WITH CHEESE",
+          "diet": "veg",
+          "description": "Most popular with kids..!!",
+          "variants": [
+            {
+              "type": "full",
+              "price": 225
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "QUASEDILLAS",
+          "diet": "veg",
+          "description": "A tortilla filled with cheese, corn and spices",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "non-veg-appetizers",
+      "name": "Appetizers (Non Veg)",
+      "items": [
+        {
+          "id": "item-7",
+          "name": "OFC STRIPS",
+          "diet": "nonveg",
+          "description": "(OONA Fried Chicken)",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "BBQ CHICKEN WINGS",
+          "diet": "nonveg",
+          "description": "Chicken wings marinated with Barbeque spice served with garlic dip",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "entrees",
+      "name": "Entrees",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Shish Taouk",
+          "diet": "nonveg",
+          "description": "Hung curd chicken marinated with mid-east spice served with garlic aioli and mukhalil",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Grilled Chicken with Chimichuri Sauce",
+          "diet": "nonveg",
+          "description": "Chicken marinated with paprika and Cajun seasoning served with chimichurri sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Lamb Chelo",
+          "diet": "nonveg",
+          "description": "Minced lamb marinated with Arabic spice served with spiced tomato sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 380
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Lamb Tabei",
+          "diet": "nonveg",
+          "description": "Minced lamb marinated with chefs spices served with hummus and pita bread",
+          "variants": [
+            {
+              "type": "full",
+              "price": 380
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Fish and Chips",
+          "diet": "seafood",
+          "description": "Panko fried fish served with tartar sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 420
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Garlic Prawns",
+          "diet": "seafood",
+          "description": "Tossed prawns in garlic sauce and served with focaccia bread",
+          "variants": [
+            {
+              "type": "full",
+              "price": 450
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "mezze-platters",
+      "name": "Mezze Platters",
+      "items": [
+        {
+          "id": "item-7",
+          "name": "Veg Mezze",
+          "diet": "veg",
+          "description": "Hummus, Baba ganoush, Cacik, Tabbouleh, Muhammara, Mukhalil, Falafal, Cheese Sambosik, Zucchini Tart served with pita bread",
+          "variants": [
+            {
+              "type": "full",
+              "price": 450
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Non Veg Mezze Platter",
+          "diet": "nonveg",
+          "description": "Hummus, Baba ganoush, Cacik, Tabbouleh, Muhammara, Mukhalil, Lamb Tart, Shish Taouk, Lamb Chelo served with pita bread",
+          "variants": [
+            {
+              "type": "full",
+              "price": 495
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "sliders",
+      "name": "Sliders",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Cottage Cheese Slider",
+          "diet": "veg",
+          "description": "Mini burgers served with fries",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Sweet Potato Slider",
+          "diet": "veg",
+          "description": "A must-try dish!",
+          "variants": [
+            {
+              "type": "full",
+              "price": 285
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Pulled Chicken Slider",
+          "diet": "nonveg",
+          "description": "Oven-roasted chicken marinated with Dijon mustard and flavoured with garlic",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Lamb Slider",
+          "diet": "nonveg",
+          "description": "Minced lamb patty served with house salad and fries",
+          "variants": [
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "main",
+      "name": "Main",
+      "items": [
+        {
+          "id": "item-5",
+          "name": "Grilled Cottage Cheese",
+          "diet": "veg",
+          "description": "Cottage cheese stuffed with spinach and ratatouille in orange sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 435
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Corn Crepes",
+          "diet": "veg",
+          "description": "Crepes stuffed bell peppers, corn served with mushroom sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 435
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Baked Vegetables with Burrata Cheese and Creamy Mustard Sauce",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 435
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Grilled Chicken in Choice of Sauce (Served with Spanish Rice)",
+          "diet": "nonveg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 465
+            }
+          ],
+          "options": [
+            "Creamy onion sauce",
+            "red wine sauce",
+            "three pepper mustard sauce"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "main-courses",
+      "name": "Main Courses",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Chicken Mexicana",
+          "diet": "nonveg",
+          "description": "Panko fried chicken topped with cheese and vegetables served with fries and salsa",
+          "variants": [
+            {
+              "type": "full",
+              "price": 465
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Chicken Marsala",
+          "diet": "nonveg",
+          "description": "Slow-fried chicken and Porcini, shiitake mushroom cooked in Marsala wines served with tangy rice",
+          "variants": [
+            {
+              "type": "full",
+              "price": 465
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Pan Fried Fish",
+          "diet": "seafood",
+          "description": "Pan-fried fish with mashed potatoes prawn butter and lemon butter sauce",
+          "variants": [
+            {
+              "type": "full",
+              "price": 495
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "pizzas",
+      "name": "Pizzas",
+      "items": [
+        {
+          "id": "item-4",
+          "name": "Margherita",
+          "diet": "veg",
+          "description": "Mozzarella cheese, spicy roast tomato base topped with basil",
+          "variants": [
+            {
+              "type": "full",
+              "price": 365
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Pizza Alle Verdure",
+          "diet": "veg",
+          "description": "Pizza with grilled vegetables and cheese",
+          "variants": [
+            {
+              "type": "full",
+              "price": 420
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Paneer Paprika",
+          "diet": "veg",
+          "description": "Chargrilled paneer cubes, cheese and paprika",
+          "variants": [
+            {
+              "type": "full",
+              "price": 420
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Quattro Formaggi",
+          "diet": "veg",
+          "description": "Pizza with four cheese topping of chef's choice",
+          "variants": [
+            {
+              "type": "full",
+              "price": 420
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Italian Pizza",
+          "diet": "veg",
+          "description": "Olives, capers, jalapenos, artichoke and cheese",
+          "variants": [
+            {
+              "type": "full",
+              "price": 420
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "Pizza Di Pollo",
+          "diet": "nonveg",
+          "description": "Grilled chicken, mozzarella cheese and herbed oil",
+          "variants": [
+            {
+              "type": "full",
+              "price": 450
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-10",
+          "name": "Smoked Chicken",
+          "diet": "nonveg",
+          "description": "Smoked chicken, bell pepper, onion and rocket leaf",
+          "variants": [
+            {
+              "type": "full",
+              "price": 450
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-11",
+          "name": "Pizza Bolognese",
+          "diet": "nonveg",
+          "description": "Pizza with minced lamb",
+          "variants": [
+            {
+              "type": "full",
+              "price": 450
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "flat-breads",
+      "name": "Flat Breads",
+      "items": [
+        {
+          "id": "flat-breads-item-1",
+          "name": "MARINARA & BURRATA",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 410
+            },
+            {
+              "type": "full",
+              "price": 425
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "flat-breads-item-2",
+          "name": "BEETROOT AND HEMP FLAT BREAD",
+          "diet": "veg",
+          "description": "Beetroot and hemp seeds topped with feta cheese and rocket leaf",
+          "variants": [
+            {
+              "type": "half",
+              "price": 410
+            },
+            {
+              "type": "full",
+              "price": 425
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "flat-breads-item-3",
+          "name": "ALFREDO FLAT BREAD",
+          "diet": "veg",
+          "description": "Alfredo sauce, veggies and mozzarella cheese",
+          "variants": [
+            {
+              "type": "half",
+              "price": 410
+            },
+            {
+              "type": "full",
+              "price": 425
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "pastas",
+      "name": "Pastas",
+      "items": [
+        {
+          "id": "pastas-item-1",
+          "name": "SPAGHETTI AGLIO OLIO",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "full",
+              "price": 325
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "pastas-item-2",
+          "name": "PENNE/ SPAGHETTI",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 325
+            },
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": [
+            "tomato sauce",
+            "mix sauce",
+            "pesto",
+            "alfredo",
+            "pumpkin",
+            "beetroot"
+          ]
+        },
+        {
+          "id": "pastas-item-3",
+          "name": "SPINACH AND CASHEWNUT RISOTTO",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 325
+            },
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "pastas-item-4",
+          "name": "RISOTTO",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 325
+            },
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": [
+            "marinara",
+            "pumpkin",
+            "beetroot"
+          ]
+        },
+        {
+          "id": "pastas-item-5",
+          "name": "WILD MUSHROOM RISOTTO",
+          "diet": "veg",
+          "description": "",
+          "variants": [
+            {
+              "type": "half",
+              "price": 325
+            },
+            {
+              "type": "full",
+              "price": 350
+            }
+          ],
+          "options": []
+        }
+      ]
+    },
+    {
+      "id": "desserts",
+      "name": "Desserts",
+      "items": [
+        {
+          "id": "item-1",
+          "name": "Chocolate Roll with Ice Cream",
+          "diet": "",
+          "description": "Crispy fried stuffed chocolate rolls served with vanilla ice cream",
+          "variants": [
+            {
+              "type": "full",
+              "price": 215
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-2",
+          "name": "Churros",
+          "diet": "",
+          "description": "Fried churros served with chocolate dip",
+          "variants": [
+            {
+              "type": "full",
+              "price": 215
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-3",
+          "name": "Panacotta",
+          "diet": "",
+          "description": "Chef's special dessert",
+          "variants": [
+            {
+              "type": "full",
+              "price": 215
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-4",
+          "name": "Tiramisu",
+          "diet": "",
+          "description": "A classic Italian dessert",
+          "variants": [
+            {
+              "type": "full",
+              "price": 215
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-5",
+          "name": "Cheesecake",
+          "diet": "",
+          "description": "Flavor as per chef's choice",
+          "variants": [
+            {
+              "type": "full",
+              "price": 215
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-6",
+          "name": "Zafaran Pistachio Phirni",
+          "diet": "",
+          "description": "Our chef's speciality",
+          "variants": [
+            {
+              "type": "full",
+              "price": 215
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-7",
+          "name": "Baked Cheese Cake",
+          "diet": "",
+          "description": "Classic cheese cake served with ice cream",
+          "variants": [
+            {
+              "type": "full",
+              "price": 215
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-8",
+          "name": "Oona Chocolate Ball",
+          "diet": "",
+          "description": "Hot chocolate ball with gold pralines",
+          "variants": [
+            {
+              "type": "full",
+              "price": 215
+            }
+          ],
+          "options": []
+        },
+        {
+          "id": "item-9",
+          "name": "Serradura",
+          "diet": "",
+          "description": "A must try Portugese dessert",
+          "variants": [
+            {
+              "type": "full",
+              "price": 215
+            }
+          ],
+          "options": []
+        }
+      ]
+    }
+  ]
+}

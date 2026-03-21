@@ -1,0 +1,52 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+*.tsbuildinfo
+
+# Environment and secrets
+.env
+.env.*
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+!.env.example
+
+# Logs and cache
+*.log
+npm-debug.log*
+pnpm-debug.log*
+.cache/
+.vite/
+.parcel-cache/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE and editors
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Supabase
+.supabase/
+
+# Test
+coverage/
+.nyc_output/
+playwright-report/
+test-results/
+
+# Python (apps/api)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Misc
+*.local

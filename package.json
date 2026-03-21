@@ -1,0 +1,19 @@
+{
+  "name": "restaurant-saas",
+  "private": true,
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "pnpm -r --parallel run dev",
+    "dev:admin": "pnpm --filter admin_dashboard dev",
+    "dev:customer": "pnpm --filter customer_app dev",
+    "dev:onboard": "pnpm --filter onboarding_flow dev",
+    "dev:api": "cd apps/api && python -m uvicorn main:app --reload --host 127.0.0.1 --port 8000",
+    "build": "pnpm -r run build",
+    "build:admin": "pnpm --filter admin_dashboard build",
+    "build:customer": "pnpm --filter customer_app build",
+    "build:onboard": "pnpm --filter onboarding_flow build"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

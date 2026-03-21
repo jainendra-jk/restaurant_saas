@@ -1,0 +1,13 @@
+{
+  "businessName": "Restaurant",
+  "address": [
+    "1234 Main Street",
+    "Suite 567",
+    "City Name, State 54321"
+  ],
+  "phone": "123-456-7890",
+  "thankYouMessage": "Thank You For Supporting Local Business!",
+  "vendorId": "—",
+  "defaultPaymentMethod": "To Pay at Table",
+  "taxLabel": "GST"
+}

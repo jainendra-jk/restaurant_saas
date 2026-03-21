@@ -1,0 +1,5 @@
+packages:
+  - 'apps/admin_dashboard'
+  - 'apps/customer_app'
+  - 'apps/onboarding_flow'
+  - 'packages/api-client'
