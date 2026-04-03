@@ -129,7 +129,7 @@ export function SettingsPage() {
           </button>
         ))}
       </SliderLayout>
-      <p className="fixed bottom-4 right-4 text-xs text-gray-300">powered by Smart Menu</p>
+      <p className="fixed bottom-4 right-4 text-xs text-gray-300">powered by ratolabs</p>
     </div>
   );
 }

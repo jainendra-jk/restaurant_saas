@@ -10,6 +10,7 @@ import { getRememberMeCookieMode } from '../../lib/supabase';
 const LAST_EMAIL_STORAGE_KEY = 'admin_last_email';
 
 export function Login() {
+  const loginBrandName = 'RATOLABS';
   const navigate = useNavigate();
   const location = useLocation();
   const { branding } = useMenuConfig();
@@ -77,7 +78,7 @@ export function Login() {
         />
         <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/30 to-black/10" />
         <div className="relative z-10 flex flex-col justify-end p-12">
-          <h1 className="text-white text-3xl mb-2">{branding.restaurantName}</h1>
+          <h1 className="text-white text-3xl mb-2">{loginBrandName}</h1>
           <p className="text-white/70 text-sm max-w-md">
             {branding.tagline}
           </p>
@@ -97,7 +98,7 @@ export function Login() {
               )}
             </div>
             <div>
-              <h2 className="text-gray-900 text-lg">{branding.restaurantName}</h2>
+              <h2 className="text-gray-900 text-lg">{loginBrandName}</h2>
               <p className="text-xs text-gray-400">Restaurant Dashboard</p>
             </div>
           </div>
@@ -209,7 +210,7 @@ export function Login() {
 
       {/* Powered by */}
       <span className="absolute bottom-4 right-4 text-[11px] text-gray-400/60">
-        powered by Smart Menu
+        powered by ratolabs
       </span>
     </div>
   );

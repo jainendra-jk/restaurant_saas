@@ -180,7 +180,7 @@ export function ShopClosedState({
       </div>
 
       <span className="fixed bottom-4 right-4 text-[11px] text-gray-400/60">
-        powered by Smart Menu
+        powered by ratolabs
       </span>
     </div>
   );
