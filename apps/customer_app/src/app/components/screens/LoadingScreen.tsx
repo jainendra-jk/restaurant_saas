@@ -1,30 +1,69 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate, useParams } from "react-router";
 import { useMenu } from "../../context/MenuContext";
+import { isTableOrderingAvailable, useCustomerSession } from "../../context/CustomerSessionContext";
+import { getOrderFlowBasePath } from "../../utils/orderRoutePaths";
 import * as typography from "../../theme/typography";
 
 export function LoadingScreen() {
   const navigate = useNavigate();
-  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string }>();
+  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string; qrToken?: string }>();
+  const session = useCustomerSession();
+  const sessionRef = useRef(session);
+  sessionRef.current = session;
   const { branding } = useMenu();
   const [phase, setPhase] = useState(0);
-  const base =
-    params.slug && params.tableNum
-      ? `/r/${params.slug}/t/${params.tableNum}`
-      : params.restaurantSlug && params.tableNumber
-        ? `/order/${params.restaurantSlug}/table/${params.tableNumber}`
-        : "";
+  const base = getOrderFlowBasePath(params);
 
   useEffect(() => {
-    const timers = [
-      setTimeout(() => setPhase(1), 400),
-      setTimeout(() => setPhase(2), 1200),
-      setTimeout(() => setPhase(3), 2000),
-      setTimeout(() => setPhase(4), 3000),
-      setTimeout(() => navigate(`${base}/menu`, { replace: true }), 3800),
-    ];
-    return () => timers.forEach(clearTimeout);
+    let cancelled = false;
+    const timers: ReturnType<typeof setTimeout>[] = [];
+    const schedule = (ms: number, fn: () => void) => {
+      const id = setTimeout(() => {
+        if (!cancelled) fn();
+      }, ms);
+      timers.push(id);
+    };
+
+    schedule(400, () => setPhase(1));
+    schedule(1200, () => setPhase(2));
+    schedule(2000, () => setPhase(3));
+    schedule(3000, () => setPhase(4));
+    schedule(3800, () => {
+      const go = () => {
+        if (cancelled) return;
+        if (!base) {
+          const s = sessionRef.current;
+          if (!s.ready) {
+            schedule(100, go);
+            return;
+          }
+          const hasTenantContext = Boolean(s.slug && (s.qrToken || s.tableNum));
+          if (hasTenantContext && !isTableOrderingAvailable(s)) {
+            navigate("/service-unavailable", { replace: true });
+            return;
+          }
+          navigate("/menu", { replace: true });
+          return;
+        }
+        const s = sessionRef.current;
+        if (!s.ready) {
+          schedule(100, go);
+          return;
+        }
+        const next = isTableOrderingAvailable(s)
+          ? `${base}/menu`
+          : `${base}/service-unavailable`;
+        navigate(next, { replace: true });
+      };
+      go();
+    });
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
   }, [navigate, base]);
 
   const isExiting = phase >= 4;
@@ -44,7 +83,7 @@ export function LoadingScreen() {
         viewBox="0 0 200 200"
         className="absolute top-8 right-[-20px] w-40 h-40 opacity-[0.06]"
         fill="none"
-        stroke="#6B7F5E"
+        stroke="var(--secondary)"
         strokeWidth="0.8"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{
@@ -63,7 +102,7 @@ export function LoadingScreen() {
         viewBox="0 0 200 200"
         className="absolute bottom-16 left-[-20px] w-36 h-36 opacity-[0.06]"
         fill="none"
-        stroke="#6B7F5E"
+        stroke="var(--secondary)"
         strokeWidth="0.8"
         initial={{ opacity: 0, scale: 0.8 }}
         animate={{
@@ -102,7 +141,7 @@ export function LoadingScreen() {
         >
           <motion.path
             d="M20 300 L20 60 Q20 20 60 20 L180 20 Q220 20 220 60 L220 300"
-            stroke="#8B9E7C"
+              stroke="var(--primary)"
             strokeWidth="1.5"
             strokeLinecap="round"
             initial={{ pathLength: 0, opacity: 0 }}
@@ -121,7 +160,7 @@ export function LoadingScreen() {
               viewBox="0 0 80 80"
               className="absolute top-8 right-6 w-12 h-12"
               fill="none"
-              stroke="#8B9E7C"
+              stroke="var(--primary)"
               strokeWidth="1"
               initial={{ opacity: 0, scale: 0.3 }}
               animate={{ opacity: 0.4, scale: 1 }}
@@ -148,7 +187,7 @@ export function LoadingScreen() {
                 className="tracking-[0.3em] text-foreground/90 mb-2"
                 style={typography.title2xl}
               >
-                {branding.restaurantName}
+                {branding.restaurantName?.trim() ? branding.restaurantName : "Loading…"}
               </h1>
               <div
                 className="w-12 h-[1px] mx-auto mb-3"

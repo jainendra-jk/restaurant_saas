@@ -6,7 +6,6 @@ import { MenuConfigProvider } from './context/MenuConfigContext';
 import { OrdersProvider } from './context/OrdersContext';
 import { RestaurantProfileProvider } from './context/RestaurantProfileContext';
 import { PaymentProvider } from './context/PaymentContext';
-import { ShopStatusProvider } from './context/ShopStatusContext';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 export default function App() {
@@ -17,10 +16,8 @@ export default function App() {
           <OrdersProvider>
           <RestaurantProfileProvider>
             <PaymentProvider>
-              <ShopStatusProvider>
-                <RouterProvider router={router} />
-                <Toaster position="top-center" richColors closeButton />
-              </ShopStatusProvider>
+              <RouterProvider router={router} />
+              <Toaster position="top-center" richColors closeButton />
             </PaymentProvider>
           </RestaurantProfileProvider>
           </OrdersProvider>

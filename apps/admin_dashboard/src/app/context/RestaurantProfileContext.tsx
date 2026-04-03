@@ -3,9 +3,12 @@ import {
   useContext,
   useState,
   useCallback,
+  useEffect,
   type ReactNode,
 } from 'react';
-import { useMenuConfig } from './MenuConfigContext';
+import { useAuth } from './AuthContext';
+import { supabase } from '../../lib/supabase';
+import { closeStoreAndDeactivateTables, openStore } from '../utils/storeStatus';
 
 const STORAGE_KEY = 'dashboard-restaurant-profile';
 
@@ -33,6 +36,7 @@ export interface RestaurantProfile {
   avgCostForTwo: string;
   description: string;
   taxRules: TaxRule[];
+  isOpen: boolean;
 }
 
 const defaultTaxRules: TaxRule[] = [];
@@ -64,12 +68,21 @@ function mergeWithDefaults(parsed: Record<string, unknown>, restaurantName: stri
             typeof (r as TaxRule).percent === 'number'
         )
       : defaultTaxRules,
+    isOpen: typeof parsed.isOpen === 'boolean' ? parsed.isOpen : true,
   };
 }
 
-function loadFromStorage(restaurantName: string): RestaurantProfile | null {
+function asText(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function storageKeyForRestaurant(restaurantId: string): string {
+  return `${STORAGE_KEY}:${restaurantId}`;
+}
+
+function loadFromStorage(storageKey: string, restaurantName: string): RestaurantProfile | null {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = localStorage.getItem(storageKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     return mergeWithDefaults(parsed, restaurantName);
@@ -82,21 +95,130 @@ interface RestaurantProfileContextValue {
   /** Saved profile from localStorage, or null if never saved. */
   profile: RestaurantProfile | null;
   /** Persist profile to localStorage and update context. */
-  saveProfile: (p: RestaurantProfile) => void;
+  saveProfile: (p: RestaurantProfile) => Promise<void>;
 }
 
 const RestaurantProfileContext = createContext<RestaurantProfileContextValue | null>(null);
 
 export function RestaurantProfileProvider({ children }: { children: ReactNode }) {
-  const { branding } = useMenuConfig();
-  const [profile, setProfile] = useState<RestaurantProfile | null>(() =>
-    loadFromStorage(branding.restaurantName)
-  );
+  const { restaurant } = useAuth();
+  const [profile, setProfile] = useState<RestaurantProfile | null>(null);
 
-  const saveProfile = useCallback((p: RestaurantProfile) => {
+  useEffect(() => {
+    if (!restaurant) return;
+    const scopedKey = storageKeyForRestaurant(restaurant.id);
+    let fromStorage = loadFromStorage(scopedKey, restaurant.name);
+    if (!fromStorage) {
+      // Migrate legacy unscoped profile once per restaurant.
+      const legacy = loadFromStorage(STORAGE_KEY, restaurant.name);
+      if (legacy) {
+        fromStorage = legacy;
+        localStorage.setItem(scopedKey, JSON.stringify(legacy));
+      }
+    }
+    const fallbackBranding = restaurant.branding as Record<string, unknown>;
+    const base = fromStorage ?? mergeWithDefaults({}, restaurant.name);
+    const next: RestaurantProfile = {
+      ...base,
+      name: restaurant.name || base.name,
+      ownerName:
+        restaurant.ownerName ?? asText(fallbackBranding.ownerName) ?? base.ownerName,
+      phone: restaurant.phone ?? asText(fallbackBranding.phone) ?? base.phone,
+      email: restaurant.email ?? base.email,
+      address: restaurant.addressLine1 ?? asText(fallbackBranding.address) ?? base.address,
+      city: restaurant.city ?? base.city,
+      state: restaurant.state ?? base.state,
+      pincode: restaurant.pincode ?? base.pincode,
+      gstNumber:
+        restaurant.gstNumber ?? asText(fallbackBranding.gstNumber) ?? base.gstNumber,
+      fssaiNumber:
+        restaurant.fssaiNumber ?? asText(fallbackBranding.fssaiNumber) ?? base.fssaiNumber,
+      isOpen: restaurant.isOpen,
+    };
+    setProfile(next);
+  }, [restaurant]);
+
+  const saveProfile = useCallback(async (p: RestaurantProfile) => {
+    if (!restaurant) {
+      setProfile(p);
+      return;
+    }
+    if (!supabase) {
+      setProfile(p);
+      localStorage.setItem(storageKeyForRestaurant(restaurant.id), JSON.stringify(p));
+      return;
+    }
+
+    // Use the local profile state first because auth context can lag until the next fetch.
+    const prevIsOpen = profile?.isOpen ?? restaurant.isOpen;
+    const nextIsOpen = p.isOpen;
+
+    const existingBranding = (restaurant.branding ?? {}) as Record<string, unknown>;
+    const taxRules = p.taxRules
+      .filter((r) => r.name.trim() && Number.isFinite(r.percent))
+      .map((r) => ({ name: r.name.trim(), percent: Number(r.percent) }));
+
+    const nextBranding = {
+      ...existingBranding,
+      ownerName: p.ownerName,
+      phone: p.phone,
+      address: p.address,
+      gstNumber: p.gstNumber,
+      fssaiNumber: p.fssaiNumber,
+      taxRules,
+    };
+    // `tableStatusSnapshot` is only meaningful while the store is closed.
+    // When opening the store (or staying open), ensure the snapshot is removed.
+    if (nextIsOpen) {
+      delete (nextBranding as Record<string, unknown>).tableStatusSnapshot;
+    }
+
+    const updateRestaurantRow = async () => {
+      await supabase
+        .from('restaurants')
+        .update({
+          name: p.name,
+          owner_name: p.ownerName || null,
+          phone: p.phone || null,
+          email: p.email || null,
+          address_line1: p.address || null,
+          city: p.city || null,
+          state: p.state || null,
+          pincode: p.pincode || null,
+          gst_number: p.gstNumber || null,
+          fssai_number: p.fssaiNumber || null,
+          branding: nextBranding,
+          // Keep explicit for correctness; open/close helpers also update it but
+          // the "stay open/stay closed" path must not rely on side effects.
+          is_open: nextIsOpen,
+        })
+        .eq('id', restaurant.id)
+        .throwOnError();
+    };
+
+    // Only toggle tables when the "store open" state itself changes.
+    if (prevIsOpen === nextIsOpen) {
+      await updateRestaurantRow();
+      setProfile(p);
+      localStorage.setItem(storageKeyForRestaurant(restaurant.id), JSON.stringify(p));
+      return;
+    }
+
+    // Open -> Closed
+    if (!nextIsOpen) {
+      await updateRestaurantRow();
+      await closeStoreAndDeactivateTables(supabase, restaurant.id);
+      setProfile(p);
+      localStorage.setItem(storageKeyForRestaurant(restaurant.id), JSON.stringify(p));
+      return;
+    }
+
+    // Closed -> Open
+    await openStore(supabase, restaurant.id);
+    await updateRestaurantRow();
     setProfile(p);
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(p));
-  }, []);
+    localStorage.setItem(storageKeyForRestaurant(restaurant.id), JSON.stringify(p));
+  }, [profile?.isOpen, restaurant]);
 
   const value: RestaurantProfileContextValue = { profile, saveProfile };
 

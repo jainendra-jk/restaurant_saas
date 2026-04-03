@@ -1,3 +1,5 @@
+import type { DietType } from '../types/menu-config';
+
 export type OrderStatus = 'new' | 'preparing' | 'served';
 
 export interface OrderLine {
@@ -28,15 +30,21 @@ export interface Table {
   number: number;
   status: 'active' | 'inactive';
   seats: number;
+  /** Full order URL from last QR generation */
+  orderUrl?: string | null;
+  /** PNG QR as base64 (no data: prefix) */
+  qrPngBase64?: string | null;
 }
 
 export interface MenuItem {
   id: string;
+  /** Stable DB slug; must not change when item moves across categories. */
+  persistentId?: string;
   name: string;
   price: number;
   categories: string[];
   image: string;
-  isVeg: boolean;
+  diet: DietType;
   isAvailable: boolean;
   description: string;
   sizes?: { label: string; price: number }[];

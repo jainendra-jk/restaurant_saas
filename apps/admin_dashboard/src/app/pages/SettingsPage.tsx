@@ -98,6 +98,8 @@ export function SettingsPage() {
 
       <SliderLayout
         isOpen={isSliderOpen}
+        tabletOverlay
+        onOverlayClose={() => setActiveSlider(null)}
         gridColsClosed="grid-cols-2 lg:grid-cols-3"
         gridColsOpen="grid-cols-2"
         sliderWidth={380}

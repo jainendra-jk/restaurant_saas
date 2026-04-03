@@ -4,11 +4,13 @@ import { ChevronRight, Eye, EyeOff, AlertCircle, CheckCircle2 } from "lucide-rea
 import { validate } from "./validation";
 
 interface DashboardSetupProps {
-  field: "tables" | "username" | "password" | "domain";
+  field: "tables" | "password";
   value: string;
   onChange: (value: string) => void;
   onNext: () => void;
   direction: number;
+  /** True while account + restaurant are being created (last step). */
+  disableContinue?: boolean;
 }
 
 function PasswordStrength({ password }: { password: string }) {
@@ -95,7 +97,14 @@ function PasswordRequirements({ password }: { password: string }) {
   );
 }
 
-export function DashboardSetup({ field, value, onChange, onNext, direction }: DashboardSetupProps) {
+export function DashboardSetup({
+  field,
+  value,
+  onChange,
+  onNext,
+  direction,
+  disableContinue = false,
+}: DashboardSetupProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
   const [error, setError] = useState("");
@@ -143,20 +152,10 @@ export function DashboardSetup({ field, value, onChange, onNext, direction }: Da
       description: "How many dine-in tables does your restaurant have?",
       placeholder: "e.g. 12",
     },
-    username: {
-      label: "Admin Username",
-      description: "This will be your login to the dashboard",
-      placeholder: "e.g. admin_tastybites",
-    },
     password: {
       label: "Set a Password",
       description: "Make it strong to keep your account secure",
       placeholder: "Enter a secure password",
-    },
-    domain: {
-      label: "Choose Your Domain",
-      description: "Your customers will find you here",
-      placeholder: "your-restaurant",
     },
   };
 
@@ -222,28 +221,6 @@ export function DashboardSetup({ field, value, onChange, onNext, direction }: Da
                 )}
               </div>
             </div>
-          ) : field === "domain" ? (
-            <div
-              className="flex items-center rounded-xl bg-gray-50/80 border border-gray-200 overflow-hidden transition-all duration-300"
-              style={{ borderColor, boxShadow: glowColor }}
-            >
-              <input
-                ref={inputRef}
-                type="text"
-                value={value}
-                onChange={(e) => onChange(e.target.value)}
-                onKeyDown={handleKeyDown}
-                onFocus={() => setIsFocused(true)}
-                onBlur={() => setIsFocused(false)}
-                placeholder={config.placeholder}
-                className="flex-1 px-5 py-4 bg-transparent outline-none border-none"
-              />
-              {showValid && !hasError && value.trim() && (
-                <motion.div initial={{ scale: 0 }} animate={{ scale: 1 }} className="pr-4">
-                  <CheckCircle2 className="w-5 h-5 text-green-500" />
-                </motion.div>
-              )}
-            </div>
           ) : (
             <div
               className="relative rounded-xl transition-all duration-300"
@@ -308,11 +285,11 @@ export function DashboardSetup({ field, value, onChange, onNext, direction }: Da
 
         <button
           onClick={handleNext}
-          disabled={!value.trim()}
+          disabled={!value.trim() || disableContinue}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-          style={{ backgroundColor: !value.trim() ? "#fdba74" : "#f97316" }}
+          style={{ backgroundColor: !value.trim() || disableContinue ? "#fdba74" : "#f97316" }}
         >
-          {field === "domain" ? "Finish Setup" : "Continue"}
+          Continue
           <ChevronRight className="w-4 h-4" />
         </button>
       </div>

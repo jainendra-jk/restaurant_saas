@@ -11,7 +11,20 @@ import { ServiceUnavailableScreen } from "./components/screens/ServiceUnavailabl
 export const router = createBrowserRouter([
   {
     path: "/service-unavailable",
-    Component: ServiceUnavailableScreen,
+    element: <Navigate to="/" replace />,
+  },
+  {
+    path: "/order/:restaurantSlug/t/:qrToken",
+    Component: CustomerRouteLayout,
+    children: [
+      { index: true, Component: LoadingScreen },
+      { path: "menu", Component: MenuScreen },
+      { path: "cart", Component: CartScreen },
+      { path: "checkout", Component: CheckoutScreen },
+      { path: "confirmation", Component: ConfirmationScreen },
+      { path: "service-unavailable", Component: ServiceUnavailableScreen },
+      { path: "*", Component: LoadingScreen },
+    ],
   },
   {
     path: "/r/:slug/t/:tableNum",
@@ -22,6 +35,7 @@ export const router = createBrowserRouter([
       { path: "cart", Component: CartScreen },
       { path: "checkout", Component: CheckoutScreen },
       { path: "confirmation", Component: ConfirmationScreen },
+      { path: "service-unavailable", Component: ServiceUnavailableScreen },
       { path: "*", Component: LoadingScreen },
     ],
   },

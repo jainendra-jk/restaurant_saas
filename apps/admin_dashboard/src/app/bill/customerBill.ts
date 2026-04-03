@@ -18,8 +18,7 @@ const FONT_SIZE_SMALL = 8;
 const LINE_HEIGHT = 5;
 const DASH = [2, 2];
 const PRICE_WIDTH = 22;
-const PLACEHOLDER_ADDRESS_LINES = ['1234 Main Street', 'Suite 567', 'City Name, State 54321'];
-const PLACEHOLDER_CONTACT = '123-456-7890';
+const UNCONFIGURED_ADDRESS_LABEL = 'Address not configured';
 
 export interface TaxRule {
   name: string;
@@ -83,18 +82,20 @@ export function generateCustomerBillPDF(order: Order, branding: BillBranding): j
   doc.text(branding.restaurantName, W / 2, y, { align: 'center' });
   y += LINE_HEIGHT + 2;
 
-  // Address: multiple lines, centered (placeholder if none)
+  // Address: multiple lines, centered (neutral fallback if none)
   doc.setFont(fontName, 'normal');
   doc.setFontSize(FONT_SIZE_SMALL);
   const addressLines = branding.address
     ? branding.address.split(/\n/).map((s) => s.trim()).filter(Boolean)
-    : PLACEHOLDER_ADDRESS_LINES;
+    : [UNCONFIGURED_ADDRESS_LABEL];
   for (const addrLine of addressLines) {
     doc.text(addrLine, W / 2, y, { align: 'center', maxWidth: W - 2 * MARGIN });
     y += LINE_HEIGHT;
   }
-  doc.text(branding.contact ?? PLACEHOLDER_CONTACT, W / 2, y, { align: 'center' });
-  y += LINE_HEIGHT;
+  if (branding.contact?.trim()) {
+    doc.text(branding.contact.trim(), W / 2, y, { align: 'center' });
+    y += LINE_HEIGHT;
+  }
   if (branding.fssaiNumber?.trim()) {
     doc.text(`FSSAI No.: ${branding.fssaiNumber.trim()}`, W / 2, y, { align: 'center' });
     y += LINE_HEIGHT;
@@ -119,8 +120,13 @@ export function generateCustomerBillPDF(order: Order, branding: BillBranding): j
   dashedLine(doc, y);
   y += LINE_HEIGHT;
 
-  // 5. Summary: Sub Total, at least one tax line (GST or profile rules), TOTAL
-  const taxRules = branding.taxRules?.filter((r) => r.name.trim() !== '' && Number.isFinite(r.percent)) ?? [];
+  // 5. Summary: Sub Total, optional profile tax lines, TOTAL
+  // Only show tax rows when the rule is actually configured (non-empty name + percent > 0).
+  // This prevents displaying 0% "tax" sections when the shopkeeper hasn't filled tax values.
+  const taxRules =
+    branding.taxRules?.filter(
+      (r) => r.name.trim() !== '' && Number.isFinite(r.percent) && r.percent > 0
+    ) ?? [];
   const useTaxRules = taxRules.length > 0;
 
   const subTotalAmount = Number.isFinite(order.subTotal) ? order.subTotal : 0;
@@ -146,16 +152,7 @@ export function generateCustomerBillPDF(order: Order, branding: BillBranding): j
     doc.text(formatAmount(subTotalAmount + taxTotal, currency), W - MARGIN, y, { align: 'right' });
     doc.setFont(fontName, 'normal');
   } else {
-    // Fallback: always show one GST line. If order.tax is 0, use 5% of subTotal so the line is visible.
-    const orderTax = Number.isFinite(order.tax) ? order.tax : 0;
-    const defaultGstPercent = 5;
-    const gstAmount =
-      orderTax > 0 ? orderTax : Math.round(subTotalAmount * (defaultGstPercent / 100) * 100) / 100;
-    const totalAmount = orderTax > 0 ? (Number.isFinite(order.total) ? order.total : subTotalAmount + orderTax) : subTotalAmount + gstAmount;
-
-    doc.text('GST', MARGIN, y);
-    doc.text(formatAmount(gstAmount, currency), W - MARGIN, y, { align: 'right' });
-    y += LINE_HEIGHT;
+    const totalAmount = subTotalAmount;
     dashedLine(doc, y);
     y += LINE_HEIGHT;
     doc.setFont(fontName, useBold ? 'bold' : 'normal');

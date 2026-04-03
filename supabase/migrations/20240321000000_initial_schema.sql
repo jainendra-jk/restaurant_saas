@@ -110,14 +110,3 @@ CREATE TABLE order_items (
 );
 
 CREATE INDEX idx_order_items_order_id ON order_items(order_id);
-
--- Helper: get restaurant_id for current user (staff)
-CREATE OR REPLACE FUNCTION auth.user_restaurant_ids()
-RETURNS SETOF UUID
-LANGUAGE sql
-STABLE
-SECURITY DEFINER
-SET search_path = public
-AS $$
-  SELECT restaurant_id FROM staff_profiles WHERE user_id = auth.uid();
-$$;

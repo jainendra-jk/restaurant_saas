@@ -1,6 +1,7 @@
 import base64
 import io
 import re
+from typing import Iterable
 
 import qrcode
 
@@ -29,18 +30,20 @@ def build_table_qr_payload(
     origin: str,
     restaurant_slug: str,
     restaurant_name: str,
-    table_count: int,
+    tables_data: Iterable[dict],
 ) -> dict:
     base = origin.rstrip("/")
-    if table_count < 1:
-        raise ValueError("table_count must be at least 1")
 
     tables: list[dict] = []
-    for table in range(1, table_count + 1):
-        url = f"{base}/order/{restaurant_slug}/table/{table}"
+    for row in tables_data:
+        table_number = int(row["table_number"])
+        qr_token = str(row["qr_token"]).strip()
+        if not qr_token:
+            raise ValueError(f"table {table_number} has empty qr_token")
+        url = f"{base}/order/{restaurant_slug}/t/{qr_token}"
         tables.append(
             {
-                "table_number": table,
+                "table_number": table_number,
                 "url": url,
                 "png_base64": qr_png_base64(url),
             }

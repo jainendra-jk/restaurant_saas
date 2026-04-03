@@ -4,10 +4,11 @@ import type { Order, OrderStatus } from '../data/mock-data';
 import { formatPlacedAt } from '../utils/helpers';
 import { useMenuConfig } from '../context/MenuConfigContext';
 import { useRestaurantProfile } from '../context/RestaurantProfileContext';
+import { useOrders } from '../context/OrdersContext';
+import { useAuth } from '../context/AuthContext';
 import { StatusBadge } from './StatusBadge';
 import { downloadCustomerBill } from '../bill/customerBill';
 import { downloadKitchenReceipt } from '../bill.config/kitchenReceipt';
-import { playNotificationSound } from '../utils/notificationSound';
 
 const statusBorderColors: Record<OrderStatus, string> = {
   new: 'border-l-status-new',
@@ -32,17 +33,59 @@ interface OrderCardProps {
   onUpdateStatus: (orderNumber: string, newStatus: OrderStatus) => void;
 }
 
-/** Build bill branding from menu config + saved profile. When profile is null, taxRules is [] and the PDF uses fallback GST (order.tax or 5% of subTotal). */
+/** Build bill branding from menu config + saved profile. When profile is null, taxRules is [] and bill renders without tax lines. */
+function cleanText(value: string | null | undefined): string | undefined {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed ? trimmed : undefined;
+}
+
 function getBillBranding(
   branding: { restaurantName: string; currency: string; address?: string; contact?: string; fssaiNumber?: string },
-  profile: { address: string; fssaiNumber: string; taxRules: { name: string; percent: number }[] } | null
+  profile: { address: string; phone?: string; fssaiNumber: string; taxRules: { name: string; percent: number }[] } | null,
+  restaurant: {
+    addressLine1: string | null;
+    phone: string | null;
+    fssaiNumber: string | null;
+    branding?: Record<string, unknown>;
+  } | null
 ) {
+  const restaurantBranding = (restaurant?.branding ?? {}) as Record<string, unknown>;
+  const restaurantBrandingAddress = cleanText(
+    typeof restaurantBranding.address === 'string' ? restaurantBranding.address : undefined
+  );
+  const restaurantBrandingContact = cleanText(
+    typeof restaurantBranding.phone === 'string'
+      ? restaurantBranding.phone
+      : typeof restaurantBranding.contact === 'string'
+        ? restaurantBranding.contact
+        : undefined
+  );
+  const restaurantBrandingFssai = cleanText(
+    typeof restaurantBranding.fssaiNumber === 'string' ? restaurantBranding.fssaiNumber : undefined
+  );
+
+  const profileAddress = cleanText(profile?.address);
+  const restaurantAddress = cleanText(restaurant?.addressLine1);
+  const menuBrandingAddress = cleanText(branding.address);
+
+  const profilePhone = cleanText(profile?.phone);
+  const restaurantPhone = cleanText(restaurant?.phone);
+  const menuBrandingContact = cleanText(branding.contact);
+
+  const profileFssai = cleanText(profile?.fssaiNumber);
+  const restaurantFssai = cleanText(restaurant?.fssaiNumber);
+  const menuBrandingFssai = cleanText(branding.fssaiNumber);
+
   return {
     restaurantName: branding.restaurantName,
     currency: branding.currency,
-    address: profile?.address?.trim() ? profile.address : branding.address,
-    contact: branding.contact,
-    fssaiNumber: profile?.fssaiNumber?.trim() ? profile.fssaiNumber : branding.fssaiNumber,
+    address:
+      profileAddress || restaurantAddress || restaurantBrandingAddress || menuBrandingAddress,
+    contact:
+      profilePhone || restaurantPhone || restaurantBrandingContact || menuBrandingContact,
+    fssaiNumber:
+      profileFssai || restaurantFssai || restaurantBrandingFssai || menuBrandingFssai,
     taxRules: profile?.taxRules ?? [],
   };
 }
@@ -50,6 +93,8 @@ function getBillBranding(
 export function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
   const { branding } = useMenuConfig();
   const { profile } = useRestaurantProfile();
+  const { restaurant } = useAuth();
+  const { pushNotification } = useOrders();
   const nextStatus = nextStatusMap[order.status];
   const [noteAcknowledged, setNoteAcknowledged] = useState(false);
   const [noteExpanded, setNoteExpanded] = useState(false);
@@ -57,7 +102,7 @@ export function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
   const hasNote = !!order.specialInstructions;
 
   const handleDownloadBill = () => {
-    downloadCustomerBill(order, getBillBranding(branding, profile));
+    downloadCustomerBill(order, getBillBranding(branding, profile, restaurant));
   };
 
   const handleDownloadKitchen = () => {
@@ -159,9 +204,28 @@ export function OrderCard({ order, onUpdateStatus }: OrderCardProps) {
           <button
             onClick={() => {
               if (nextStatus === 'preparing') {
-                downloadCustomerBill(order, getBillBranding(branding, profile));
-                downloadKitchenReceipt(order, branding.restaurantName);
-                playNotificationSound();
+                try {
+                  downloadCustomerBill(order, getBillBranding(branding, profile, restaurant));
+                } catch (error) {
+                  console.error('Failed to download customer bill', error);
+                }
+                try {
+                  downloadKitchenReceipt(order, branding.restaurantName);
+                } catch (error) {
+                  console.error('Failed to download kitchen receipt', error);
+                }
+                pushNotification({
+                  type: 'preparing',
+                  title: `Started Preparing - Table ${order.tableNo}`,
+                  description: `${order.orderNumber} \u00b7 ${order.lines.length} item${order.lines.length === 1 ? '' : 's'}`,
+                });
+              }
+              if (nextStatus === 'served') {
+                pushNotification({
+                  type: 'served',
+                  title: `Order Served - Table ${order.tableNo}`,
+                  description: `${order.orderNumber} \u00b7 ${branding.currency}${Math.round(order.total)}`,
+                });
               }
               onUpdateStatus(order.orderNumber, nextStatus);
             }}

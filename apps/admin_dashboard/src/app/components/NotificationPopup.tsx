@@ -3,62 +3,78 @@ import { useNavigate } from 'react-router';
 import {
   Bell,
   ShoppingBag,
-  AlertCircle,
-  CheckCircle2,
   ChefHat,
+  CheckCircle2,
   Clock,
 } from 'lucide-react';
 import { useMenuConfig } from '../context/MenuConfigContext';
+import { useOrders } from '../context/OrdersContext';
 import { useClickOutside } from '../hooks/useClickOutside';
 
 const notifIconMap = {
   'new-order': { icon: ShoppingBag, bg: 'bg-primary/10', color: 'text-primary' },
-  status: { icon: ChefHat, bg: 'bg-status-preparing-light', color: 'text-status-preparing' },
-  alert: { icon: AlertCircle, bg: 'bg-danger-light', color: 'text-danger' },
+  preparing: { icon: ChefHat, bg: 'bg-status-preparing-light', color: 'text-status-preparing' },
   served: { icon: CheckCircle2, bg: 'bg-status-served-light', color: 'text-status-served' },
 };
 
 interface Notification {
   id: string;
-  type: 'new-order' | 'status' | 'alert' | 'served';
+  type: 'new-order' | 'preparing' | 'served';
   title: string;
   description: string;
-  time: string;
+  createdAt: string;
   unread: boolean;
 }
 
-const initialNotifications: Notification[] = [
-  { id: 'n1', type: 'new-order', title: 'New Order - Table 8', description: '3 items · ₹630', time: '2 min ago', unread: true },
-  { id: 'n2', type: 'new-order', title: 'New Order - Table 7', description: '3 items · ₹1,200', time: '6 min ago', unread: true },
-  { id: 'n3', type: 'new-order', title: 'New Order - Table 3', description: '3 items · ₹940', time: '10 min ago', unread: true },
-  { id: 'n4', type: 'status', title: 'Order Ready - Table 5', description: 'Tandoori Chicken order is ready to serve', time: '15 min ago', unread: false },
-  { id: 'n5', type: 'alert', title: 'Low Stock Alert', description: 'Paneer Butter Masala running low', time: '25 min ago', unread: false },
-  { id: 'n6', type: 'served', title: 'Order Served - Table 2', description: 'All items delivered · ₹720', time: '35 min ago', unread: false },
-  { id: 'n7', type: 'status', title: 'Order Preparing - Table 12', description: 'Veg Samosa (6x) started', time: '40 min ago', unread: false },
-];
-
 const notifRouteMap: Record<Notification['type'], string> = {
   'new-order': '/orders?filter=new',
-  status: '/orders?filter=preparing',
+  preparing: '/orders?filter=preparing',
   served: '/orders?filter=served',
-  alert: '/menu',
 };
+
+function formatRelativeTime(isoTs: string): string {
+  const ms = Date.now() - new Date(isoTs).getTime();
+  const mins = Math.max(0, Math.floor(ms / 60000));
+  if (mins < 1) return 'just now';
+  if (mins < 60) return `${mins} min ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days} day${days > 1 ? 's' : ''} ago`;
+}
 
 export function NotificationPopup() {
   const { branding } = useMenuConfig();
+  const {
+    notifications,
+    markAllNotificationsRead,
+    clearNotifications,
+  } = useOrders();
   const [open, setOpen] = useState(false);
-  const [notifications, setNotifications] = useState(initialNotifications);
   const ref = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
 
-  useClickOutside(ref, () => setOpen(false), open);
+  const closePopup = (markRead: boolean) => {
+    if (markRead) markAllNotificationsRead();
+    setOpen(false);
+  };
+
+  useClickOutside(ref, () => {
+    if (open) closePopup(true);
+  }, open);
 
   const unreadCount = notifications.filter((n) => n.unread).length;
 
   return (
     <div className="relative" ref={ref}>
       <button
-        onClick={() => setOpen(!open)}
+        onClick={() => {
+          if (open) {
+            closePopup(true);
+            return;
+          }
+          setOpen(true);
+        }}
         className="relative p-2 rounded-xl hover:bg-gray-50 transition-colors cursor-pointer"
       >
         <Bell className="w-5 h-5 text-gray-500" />
@@ -88,8 +104,8 @@ export function NotificationPopup() {
                   <button
                     key={notif.id}
                     onClick={() => {
+                      closePopup(true);
                       navigate(notifRouteMap[notif.type]);
-                      setOpen(false);
                     }}
                     className={`w-full flex items-start gap-3 p-3 hover:bg-gray-50 transition-colors cursor-pointer text-left ${
                       notif.unread ? 'bg-primary/[0.02]' : ''
@@ -110,7 +126,7 @@ export function NotificationPopup() {
                       <p className="text-xs text-gray-400 mt-0.5 truncate">{notif.description.replace(/₹/g, branding.currency)}</p>
                       <div className="flex items-center gap-1 mt-1 text-xs text-gray-300">
                         <Clock className="w-3 h-3" />
-                        {notif.time}
+                        {formatRelativeTime(notif.createdAt)}
                       </div>
                     </div>
                   </button>
@@ -122,7 +138,7 @@ export function NotificationPopup() {
             <div className="p-2 border-t border-gray-50">
               <button
                 onClick={() => {
-                  setNotifications([]);
+                  clearNotifications();
                   setOpen(false);
                 }}
                 className="w-full text-center text-xs text-primary hover:bg-primary/5 py-2 rounded-lg transition-colors cursor-pointer"

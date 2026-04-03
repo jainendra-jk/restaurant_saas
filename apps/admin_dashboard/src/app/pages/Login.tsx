@@ -1,21 +1,37 @@
 import { useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useLocation, useNavigate } from 'react-router';
 import { Eye, EyeOff, ChefHat } from 'lucide-react';
 import { ImageWithFallback } from '../components/figma/ImageWithFallback';
 import { useMenuConfig } from '../context/MenuConfigContext';
 import { useAuth, requiresAuth } from '../context/AuthContext';
 import { getStoredProfileLogo } from '../context/ProfileLogoContext';
+import { getRememberMeCookieMode } from '../../lib/supabase';
+
+const LAST_EMAIL_STORAGE_KEY = 'admin_last_email';
 
 export function Login() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { branding } = useMenuConfig();
   const { signIn } = useAuth();
   const [logoUrl] = useState<string | null>(getStoredProfileLogo);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState<string>(() => {
+    if (typeof window === 'undefined') return '';
+    return window.localStorage.getItem(LAST_EMAIL_STORAGE_KEY) ?? '';
+  });
   const [password, setPassword] = useState('');
+  const [rememberMe, setRememberMe] = useState<boolean>(getRememberMeCookieMode);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const from = (location.state as { from?: { pathname?: string; search?: string; hash?: string } } | null)?.from;
+  const requestedPath = `${from?.pathname ?? ''}${from?.search ?? ''}${from?.hash ?? ''}`;
+  const isSafeInternalPath =
+    requestedPath.startsWith('/') &&
+    !requestedPath.startsWith('//') &&
+    !requestedPath.includes('://');
+  const redirectTarget = isSafeInternalPath ? requestedPath : '/';
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -28,17 +44,24 @@ export function Login() {
 
     setLoading(true);
     if (requiresAuth()) {
-      const { error: err } = await signIn(email, password);
+      const { error: err } = await signIn(email, password, rememberMe);
       setLoading(false);
       if (err) {
         setError(err.message ?? 'Login failed');
         return;
       }
-      navigate('/');
+      if (typeof window !== 'undefined') {
+        if (rememberMe) {
+          window.localStorage.setItem(LAST_EMAIL_STORAGE_KEY, email.trim());
+        } else {
+          window.localStorage.removeItem(LAST_EMAIL_STORAGE_KEY);
+        }
+      }
+      navigate(redirectTarget, { replace: true });
     } else {
       setTimeout(() => {
         setLoading(false);
-        navigate('/');
+        navigate(redirectTarget, { replace: true });
       }, 1200);
     }
   };
@@ -99,6 +122,7 @@ export function Login() {
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                autoComplete="email"
                 placeholder={`you@${branding.restaurantName.toLowerCase().replace(/\s+/g, '')}.com`}
                 className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
               />
@@ -111,6 +135,7 @@ export function Login() {
                   type={showPassword ? 'text' : 'password'}
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="current-password"
                   placeholder="Enter your password"
                   className="w-full px-4 py-2.5 pr-11 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 placeholder:text-gray-300 focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary transition-all"
                 />
@@ -129,6 +154,8 @@ export function Login() {
                 <input
                   type="checkbox"
                   className="w-4 h-4 appearance-none rounded border border-gray-300 bg-white checked:bg-primary checked:border-primary focus:ring-2 focus:ring-primary/30 cursor-pointer relative checked:after:content-['✓'] checked:after:text-white checked:after:text-[10px] checked:after:absolute checked:after:inset-0 checked:after:flex checked:after:items-center checked:after:justify-center"
+                  checked={rememberMe}
+                  onChange={(e) => setRememberMe(e.target.checked)}
                 />
                 <span className="text-xs text-gray-500">Remember me</span>
               </label>

@@ -2,6 +2,8 @@
 
 Multi-tenant restaurant management: onboarding, admin dashboard, and customer ordering app (QR menu).
 
+**How it fits together:** see [docs/APP_FUNCTIONING.md](docs/APP_FUNCTIONING.md) (onboarding → admin → customer / QR / API / Supabase).
+
 ## Apps
 
 | App | Path | Purpose |
@@ -31,6 +33,17 @@ pnpm dev:onboard    # Onboarding flow
 pnpm dev:api        # FastAPI (apps/api) — menu PDF + QR endpoints
 ```
 
+**Local dev URLs** (fixed ports, `strictPort: true` — each app keeps its own URL):
+
+| App | URL |
+|-----|-----|
+| Admin dashboard | http://localhost:5174 |
+| Customer app | http://localhost:5175 |
+| Onboarding | http://localhost:5176 |
+| API | http://localhost:8000 |
+
+Set `VITE_CUSTOMER_APP_ORIGIN` / `CUSTOMER_APP_ORIGIN` to `http://localhost:5175` and `VITE_ADMIN_DASHBOARD_ORIGIN` to `http://localhost:5174` in root `.env` when testing locally (see `.env.example`).
+
 ## Environment variables
 
 Create `.env.local` in each app directory (or root) as needed. **Never commit secrets.**
@@ -55,6 +68,19 @@ pnpm build:onboard   # Onboarding only
 ```
 
 Output: `apps/<name>/dist/`
+
+## Troubleshooting
+
+### Vite: `ENOENT` / missing `motion/.../react.mjs` (onboarding or other apps)
+
+Usually a **corrupt or partial `node_modules`** (interrupted install, antivirus, sync tools on the project folder). Fix:
+
+1. Stop all dev servers (`Ctrl+C`).
+2. From the repo root, delete install output and reinstall:
+   - **PowerShell:** `Remove-Item -Recurse -Force node_modules`; then remove `node_modules` under each `apps/*` and `packages/*` if present.
+3. Run `pnpm install` again, then `pnpm dev:onboard` (or your app).
+
+If pnpm reports **ignored build scripts** for `esbuild`, run `pnpm approve-builds` and allow `esbuild` when prompted so native binaries install correctly.
 
 ## CI
 

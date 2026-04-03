@@ -39,6 +39,7 @@ export interface OrderSummary {
   lines: OrderSummaryLine[];
   subTotal: number;
   tax: number;
+  taxLines?: Array<{ name: string; percent: number; amount: number }>;
   total: number;
   tableNo?: string;
 }
@@ -186,13 +187,26 @@ export async function generateReceiptPdf(
   doc.setFont(RECEIPT_FONT, "normal");
   doc.setFontSize(9);
   y += 6;
-  doc.text(taxLabel, CONTENT_LEFT_MM, y);
-  const taxStr = formatMoney(summary.tax, symbol);
-  setPriceFont(doc, fontSizePrice);
-  doc.text(taxStr, getRightAlignedX(doc, taxStr, fontSizePrice), y);
-  doc.setFont(RECEIPT_FONT, "normal");
-  doc.setFontSize(9);
-  y += 6;
+  const taxLines = summary.taxLines?.filter((t) => t.amount > 0) ?? [];
+  if (taxLines.length > 0) {
+    for (const line of taxLines) {
+      doc.text(`${line.name} (${line.percent}%)`, CONTENT_LEFT_MM, y);
+      const taxStr = formatMoney(line.amount, symbol);
+      setPriceFont(doc, fontSizePrice);
+      doc.text(taxStr, getRightAlignedX(doc, taxStr, fontSizePrice), y);
+      doc.setFont(RECEIPT_FONT, "normal");
+      doc.setFontSize(9);
+      y += 6;
+    }
+  } else if (summary.tax > 0) {
+    doc.text(taxLabel, CONTENT_LEFT_MM, y);
+    const taxStr = formatMoney(summary.tax, symbol);
+    setPriceFont(doc, fontSizePrice);
+    doc.text(taxStr, getRightAlignedX(doc, taxStr, fontSizePrice), y);
+    doc.setFont(RECEIPT_FONT, "normal");
+    doc.setFontSize(9);
+    y += 6;
+  }
 
   drawDottedLine(doc, y);
   y += 6;

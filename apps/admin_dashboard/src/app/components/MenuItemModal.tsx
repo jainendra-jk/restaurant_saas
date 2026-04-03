@@ -1,8 +1,72 @@
 import { X, Plus, ChevronDown } from 'lucide-react';
 import { useState, useRef } from 'react';
 import type { MenuItem } from '../data/mock-data';
+import type { DietType } from '../types/menu-config';
 import { useMenuConfig } from '../context/MenuConfigContext';
 import { useClickOutside } from '../hooks/useClickOutside';
+
+const DIET_OPTIONS: { value: DietType; label: string }[] = [
+  { value: 'veg', label: 'Veg' },
+  { value: 'egg', label: 'Egg' },
+  { value: 'nonveg', label: 'Non-veg' },
+  { value: 'seafood', label: 'Seafood' },
+];
+
+/** FSSAI-style square frame + centered dot; same geometry for all diets. */
+function DietGlyph({ diet, selected }: { diet: DietType; selected: DietType }) {
+  const active = diet === selected;
+  const ring =
+    'inline-flex shrink-0 items-center justify-center size-[18px] rounded-[4px] border-2 box-border';
+  const inner = 'rounded-full size-[8px]';
+  let ringCls = `${ring} border-gray-300`;
+  let innerCls = `${inner} bg-gray-300`;
+  if (active) {
+    switch (diet) {
+      case 'veg':
+        ringCls = `${ring} border-menu-veg`;
+        innerCls = `${inner} bg-menu-veg`;
+        break;
+      case 'egg':
+        ringCls = `${ring} border-amber-500`;
+        innerCls = `${inner} bg-amber-500`;
+        break;
+      case 'nonveg':
+        ringCls = `${ring} border-menu-nonveg`;
+        innerCls = `${inner} bg-menu-nonveg`;
+        break;
+      case 'seafood':
+        ringCls = `${ring} border-rose-600`;
+        innerCls = `${inner} bg-rose-600`;
+        break;
+      default:
+        break;
+    }
+  }
+  return (
+    <span className={ringCls} aria-hidden>
+      <span className={innerCls} />
+    </span>
+  );
+}
+
+function dietSegmentClasses(d: DietType, selected: DietType): string {
+  const base =
+    'min-w-0 flex flex-col items-center justify-center gap-1.5 py-2.5 px-1 sm:px-2 rounded-xl text-[10px] sm:text-xs font-medium transition-all cursor-pointer border leading-none';
+  const inactive = 'bg-white border-transparent text-gray-400 hover:bg-gray-50 hover:text-gray-600';
+  if (d !== selected) return `${base} ${inactive}`;
+  switch (d) {
+    case 'veg':
+      return `${base} bg-green-50 border-menu-veg text-menu-veg`;
+    case 'egg':
+      return `${base} bg-amber-50 border-amber-500 text-amber-800`;
+    case 'nonveg':
+      return `${base} bg-red-50 border-menu-nonveg text-menu-nonveg`;
+    case 'seafood':
+      return `${base} bg-rose-50 border-rose-600 text-rose-800`;
+    default:
+      return `${base} ${inactive}`;
+  }
+}
 
 interface MenuItemModalProps {
   item: MenuItem;
@@ -18,7 +82,13 @@ export function MenuItemModal({ item, categories, onClose, onSave, isNew }: Menu
     const sizes = item.sizes && item.sizes.length > 0
       ? [...item.sizes]
       : isNew ? [] : [{ label: 'Full', price: item.price }];
-    return { ...item, sizes, flavours: item.flavours ? [...item.flavours] : [], categories: [...item.categories] };
+    return {
+      ...item,
+      sizes,
+      flavours: item.flavours ? [...item.flavours] : [],
+      categories: [...item.categories],
+      diet: item.diet ?? 'veg',
+    };
   });
   const [newFlavour, setNewFlavour] = useState('');
   const [newSizeLabel, setNewSizeLabel] = useState('');
@@ -115,42 +185,21 @@ export function MenuItemModal({ item, categories, onClose, onSave, isNew }: Menu
             />
           </div>
 
-          {/* Veg/Non-veg selection */}
+          {/* Diet: veg / egg / nonveg / seafood — single row */}
           <div>
             <label className="block text-xs text-gray-500 mb-1.5">Type</label>
-            <div className="flex items-center gap-2">
-              <button
-                type="button"
-                onClick={() => setEditForm({ ...editForm, isVeg: true })}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs transition-all cursor-pointer border ${
-                  editForm.isVeg
-                    ? 'bg-green-50 border-menu-veg text-menu-veg'
-                    : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
-                }`}
-              >
-                <span className={`w-3.5 h-3.5 rounded border-[1.5px] grid place-items-center ${
-                  editForm.isVeg ? 'border-menu-veg' : 'border-gray-300'
-                }`}>
-                  <span className={`w-[7px] h-[7px] rounded-full ${editForm.isVeg ? 'bg-menu-veg' : 'bg-gray-300'}`} />
-                </span>
-                Veg
-              </button>
-              <button
-                type="button"
-                onClick={() => setEditForm({ ...editForm, isVeg: false })}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs transition-all cursor-pointer border ${
-                  !editForm.isVeg
-                    ? 'bg-red-50 border-menu-nonveg text-menu-nonveg'
-                    : 'bg-white border-gray-200 text-gray-400 hover:bg-gray-50'
-                }`}
-              >
-                <span className={`w-3.5 h-3.5 rounded border-[1.5px] grid place-items-center ${
-                  !editForm.isVeg ? 'border-menu-nonveg' : 'border-gray-300'
-                }`}>
-                  <span className={`w-[7px] h-[7px] rounded-full ${!editForm.isVeg ? 'bg-menu-nonveg' : 'bg-gray-300'}`} />
-                </span>
-                Non-veg
-              </button>
+            <div className="rounded-xl border border-gray-200 bg-gray-50/80 p-1.5 grid grid-cols-4 gap-1">
+              {DIET_OPTIONS.map(({ value, label }) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setEditForm({ ...editForm, diet: value })}
+                  className={dietSegmentClasses(value, editForm.diet)}
+                >
+                  <DietGlyph diet={value} selected={editForm.diet} />
+                  <span className="text-center">{label}</span>
+                </button>
+              ))}
             </div>
           </div>
 

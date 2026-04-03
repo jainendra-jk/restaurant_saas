@@ -61,22 +61,11 @@ const validators: Record<string, (value: string) => ValidationResult> = {
     if (num > 999) return { valid: false, message: "Maximum 999 tables allowed" };
     return { valid: true, message: "" };
   },
-  username: (v) => {
-    if (!v.trim()) return { valid: false, message: "Username is required" };
-    if (v.trim().length < 4) return { valid: false, message: "Username must be at least 4 characters" };
-    if (!/^[a-zA-Z0-9_]+$/.test(v.trim())) return { valid: false, message: "Only letters, numbers, and underscores" };
-    return { valid: true, message: "" };
-  },
   password: (v) => {
     if (!v) return { valid: false, message: "Password is required" };
     if (v.length < 8) return { valid: false, message: "Password must be at least 8 characters" };
     if (!/[A-Z]/.test(v)) return { valid: false, message: "Include at least one uppercase letter" };
     if (!/[0-9]/.test(v)) return { valid: false, message: "Include at least one number" };
-    return { valid: true, message: "" };
-  },
-  domain: (v) => {
-    if (!v.trim()) return { valid: false, message: "Domain is required" };
-    if (v.trim().length < 3) return { valid: false, message: "Domain must be at least 3 characters" };
     return { valid: true, message: "" };
   },
 };

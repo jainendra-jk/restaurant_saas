@@ -1,9 +1,19 @@
-import { useState, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Shield, Lock, KeyRound, History, ChevronDown, Check, Timer } from 'lucide-react';
+import { toast } from 'sonner';
 import { SliderShell } from './ui/SliderShell';
 import { SectionHeader } from './ui/SectionHeader';
 import { SaveButton } from './ui/SaveButton';
 import { useClickOutside } from '../hooks/useClickOutside';
+import { useAuth } from '../context/AuthContext';
+import {
+  fetchRecentLoginSessions,
+  fetchSecuritySettings,
+  revokeSession,
+  saveSessionTimeout,
+  updatePassword,
+  type LoginSessionEntry,
+} from '../utils/securitySettings';
 
 interface SecuritySettings {
   currentPassword: string;
@@ -18,12 +28,6 @@ const initialSettings: SecuritySettings = {
   confirmPassword: '',
   sessionTimeout: '60',
 };
-
-const loginHistory = [
-  { device: 'Chrome on MacOS', ip: '192.168.1.42', time: '2 hours ago', current: true },
-  { device: 'Safari on iPad', ip: '192.168.1.38', time: 'Yesterday, 9:15 PM', current: false },
-  { device: 'Chrome on Windows', ip: '103.21.58.6', time: 'Mar 10, 11:30 AM', current: false },
-];
 
 const timeoutOptions = [
   { value: '15', label: '15 minutes', desc: 'High security' },
@@ -179,10 +183,98 @@ interface SecuritySliderProps {
 }
 
 export function SecuritySlider({ onClose }: SecuritySliderProps) {
+  const { restaurant, setSessionTimeoutMinutes } = useAuth();
   const [settings, setSettings] = useState(initialSettings);
+  const [sessions, setSessions] = useState<LoginSessionEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [sessionActionError, setSessionActionError] = useState<string | null>(null);
+  const [revokingId, setRevokingId] = useState<string | null>(null);
 
   const update = <K extends keyof SecuritySettings>(key: K, value: SecuritySettings[K]) => {
     setSettings((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const hasPasswordInput = useMemo(
+    () => !!settings.currentPassword || !!settings.newPassword || !!settings.confirmPassword,
+    [settings.confirmPassword, settings.currentPassword, settings.newPassword]
+  );
+  const passwordMismatch =
+    !!settings.newPassword &&
+    !!settings.confirmPassword &&
+    settings.newPassword !== settings.confirmPassword;
+  const passwordFormInvalid =
+    hasPasswordInput &&
+    (!settings.currentPassword ||
+      !settings.newPassword ||
+      !settings.confirmPassword ||
+      settings.newPassword.length < 8 ||
+      passwordMismatch);
+
+  useEffect(() => {
+    let active = true;
+    const load = async () => {
+      if (!restaurant?.id) {
+        setLoading(false);
+        return;
+      }
+      try {
+        const [persisted, recentSessions] = await Promise.all([
+          fetchSecuritySettings(restaurant.id),
+          fetchRecentLoginSessions(),
+        ]);
+        if (!active) return;
+        setSettings((prev) => ({ ...prev, sessionTimeout: persisted.sessionTimeout }));
+        setSessions(recentSessions);
+      } catch (e) {
+        if (!active) return;
+        setSaveError(e instanceof Error ? e.message : 'Failed to load security settings');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      active = false;
+    };
+  }, [restaurant?.id]);
+
+  const handleRevoke = async (sessionId: string) => {
+    setSessionActionError(null);
+    setRevokingId(sessionId);
+    try {
+      await revokeSession(sessionId);
+      const recentSessions = await fetchRecentLoginSessions();
+      setSessions(recentSessions);
+      toast.success('Other sessions revoked.', { closeButton: false });
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to revoke session';
+      setSessionActionError(message);
+      toast.error(message, { closeButton: false });
+    } finally {
+      setRevokingId(null);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaveError(null);
+    try {
+      if (!restaurant?.id) throw new Error('Restaurant not found');
+      if (passwordFormInvalid) throw new Error('Please fix password validation errors');
+      if (hasPasswordInput) {
+        await updatePassword(settings.currentPassword, settings.newPassword);
+      }
+      const timeoutMinutes = Number(settings.sessionTimeout);
+      await saveSessionTimeout(restaurant.id, timeoutMinutes);
+      setSessionTimeoutMinutes(timeoutMinutes);
+      toast.success('Security settings saved.', { closeButton: false });
+      onClose();
+    } catch (e) {
+      const message = e instanceof Error ? e.message : 'Failed to save security settings';
+      setSaveError(message);
+      toast.error(message, { closeButton: false });
+      throw e;
+    }
   };
 
   return (
@@ -192,7 +284,14 @@ export function SecuritySlider({ onClose }: SecuritySliderProps) {
       title="Security"
       subtitle="Access & authentication"
       onClose={onClose}
-      footer={<SaveButton label="Save Security Settings" onSave={onClose} />}
+      footer={
+        <SaveButton
+          label="Save Security Settings"
+          onSave={handleSave}
+          disabled={loading || passwordFormInvalid}
+          errorMessage={saveError}
+        />
+      }
     >
       {/* Change Password */}
       <SectionHeader icon={Lock} label="Change Password" color={SECURITY_COLOR} />
@@ -200,6 +299,9 @@ export function SecuritySlider({ onClose }: SecuritySliderProps) {
         <PasswordField label="Current Password" value={settings.currentPassword} onChange={(v) => update('currentPassword', v)} placeholder="Enter current password" />
         <PasswordField label="New Password" value={settings.newPassword} onChange={(v) => update('newPassword', v)} placeholder="Enter new password" />
         <PasswordField label="Confirm New Password" value={settings.confirmPassword} onChange={(v) => update('confirmPassword', v)} placeholder="Re-enter new password" />
+        {hasPasswordInput && settings.newPassword.length > 0 && settings.newPassword.length < 8 && (
+          <p className="text-xs text-danger">New password must be at least 8 characters</p>
+        )}
         {settings.newPassword && settings.confirmPassword && settings.newPassword !== settings.confirmPassword && (
           <p className="text-xs text-danger">Passwords do not match</p>
         )}
@@ -214,9 +316,9 @@ export function SecuritySlider({ onClose }: SecuritySliderProps) {
       {/* Recent Logins */}
       <SectionHeader icon={History} label="Recent Logins" color={SECURITY_COLOR} />
       <div className="space-y-2">
-        {loginHistory.map((session, i) => (
+        {sessions.map((session) => (
           <div
-            key={i}
+            key={session.id}
             className={`flex items-center justify-between p-2.5 rounded-xl border ${
               session.current ? 'border-primary/20 bg-primary/5' : 'border-gray-100 bg-gray-50'
             }`}
@@ -233,12 +335,19 @@ export function SecuritySlider({ onClose }: SecuritySliderProps) {
               </p>
             </div>
             {!session.current && (
-              <button className="text-[11px] text-danger hover:underline cursor-pointer flex-shrink-0">
+              <button
+                type="button"
+                disabled={revokingId === session.id}
+                onClick={() => handleRevoke(session.id)}
+                className="text-[11px] text-danger hover:underline cursor-pointer flex-shrink-0 disabled:opacity-60 disabled:no-underline"
+              >
                 Revoke
               </button>
             )}
           </div>
         ))}
+        {!sessions.length && <p className="text-xs text-gray-400">No active sessions found.</p>}
+        {sessionActionError ? <p className="text-xs text-danger">{sessionActionError}</p> : null}
       </div>
 
       <div className="h-4" />

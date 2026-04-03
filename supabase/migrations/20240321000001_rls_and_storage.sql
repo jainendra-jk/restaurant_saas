@@ -11,7 +11,7 @@ ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
 ALTER TABLE order_items ENABLE ROW LEVEL SECURITY;
 
 -- Helper: is user staff of restaurant?
-CREATE OR REPLACE FUNCTION auth.is_staff_of(rid UUID)
+CREATE OR REPLACE FUNCTION public.is_staff_of(rid UUID)
 RETURNS BOOLEAN
 LANGUAGE sql
 STABLE
@@ -27,15 +27,22 @@ $$;
 -- restaurants: staff can read/update their restaurant
 CREATE POLICY "Staff can read own restaurant"
   ON restaurants FOR SELECT
-  USING (auth.is_staff_of(id));
+  USING (public.is_staff_of(id));
 
 CREATE POLICY "Staff can update own restaurant"
   ON restaurants FOR UPDATE
-  USING (auth.is_staff_of(id));
+  USING (public.is_staff_of(id));
 
-CREATE POLICY "Anyone can insert restaurant"
+-- Authenticated users only, and only before their first staff_profiles row (onboarding).
+-- If signUp yields no session (e.g. email confirmation required), INSERT fails until the user has a JWT.
+CREATE POLICY "Authenticated onboarding insert restaurant"
   ON restaurants FOR INSERT
-  WITH CHECK (true);
+  WITH CHECK (
+    auth.uid() IS NOT NULL
+    AND NOT EXISTS (
+      SELECT 1 FROM staff_profiles sp WHERE sp.user_id = auth.uid()
+    )
+  );
 
 -- staff_profiles: users can read own profile
 CREATE POLICY "Users can read own staff profile"
@@ -49,7 +56,7 @@ CREATE POLICY "Insert staff profile"
 -- tables: staff full access for their restaurant
 CREATE POLICY "Staff can manage tables"
   ON tables FOR ALL
-  USING (auth.is_staff_of(restaurant_id));
+  USING (public.is_staff_of(restaurant_id));
 
 -- Public read tables by qr_token (for customer app to resolve table)
 CREATE POLICY "Public read table by qr_token"
@@ -59,7 +66,7 @@ CREATE POLICY "Public read table by qr_token"
 -- menu_categories: staff full access; public read for customer menu
 CREATE POLICY "Staff can manage menu categories"
   ON menu_categories FOR ALL
-  USING (auth.is_staff_of(restaurant_id));
+  USING (public.is_staff_of(restaurant_id));
 
 CREATE POLICY "Public read menu categories"
   ON menu_categories FOR SELECT
@@ -72,7 +79,7 @@ CREATE POLICY "Staff can manage menu items"
     EXISTS (
       SELECT 1 FROM menu_categories mc
       WHERE mc.id = menu_items.category_id
-      AND auth.is_staff_of(mc.restaurant_id)
+      AND public.is_staff_of(mc.restaurant_id)
     )
   );
 
@@ -83,7 +90,7 @@ CREATE POLICY "Public read menu items"
 -- orders: staff read/update for their restaurant; allow insert for valid table (customer)
 CREATE POLICY "Staff can manage orders"
   ON orders FOR ALL
-  USING (auth.is_staff_of(restaurant_id));
+  USING (public.is_staff_of(restaurant_id));
 
 -- Allow anon to insert orders for tables with qr_token (customer checkout)
 CREATE POLICY "Insert order for valid table"
@@ -113,7 +120,7 @@ CREATE POLICY "Staff can manage order items"
     EXISTS (
       SELECT 1 FROM orders o
       WHERE o.id = order_id
-      AND auth.is_staff_of(o.restaurant_id)
+      AND public.is_staff_of(o.restaurant_id)
     )
   );
 
@@ -146,7 +153,7 @@ CREATE POLICY "Staff upload logos"
     bucket_id = 'logos'
     AND auth.uid() IS NOT NULL
     AND (storage.foldername(name))[1] IN (
-      SELECT id::text FROM restaurants WHERE auth.is_staff_of(id)
+      SELECT id::text FROM restaurants WHERE public.is_staff_of(id)
     )
   );
 
@@ -155,7 +162,7 @@ CREATE POLICY "Staff update own logos"
   USING (
     bucket_id = 'logos'
     AND (storage.foldername(name))[1] IN (
-      SELECT id::text FROM restaurants WHERE auth.is_staff_of(id)
+      SELECT id::text FROM restaurants WHERE public.is_staff_of(id)
     )
   );
 
@@ -166,6 +173,6 @@ CREATE POLICY "Staff manage menu PDFs"
     bucket_id = 'menu-pdfs'
     AND auth.uid() IS NOT NULL
     AND (storage.foldername(name))[1] IN (
-      SELECT id::text FROM restaurants WHERE auth.is_staff_of(id)
+      SELECT id::text FROM restaurants WHERE public.is_staff_of(id)
     )
   );

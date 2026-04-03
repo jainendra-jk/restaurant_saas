@@ -21,6 +21,30 @@ class Settings(BaseSettings):
     customer_app_origin: str = Field(default="", validation_alias="CUSTOMER_APP_ORIGIN")
     api_port: int = Field(default=8000, validation_alias="API_PORT")
     api_cors_origins: str = Field(default="", validation_alias="API_CORS_ORIGINS")
+    menu_extract_max_concurrent_pages: int = Field(
+        default=3,
+        validation_alias="MENU_EXTRACT_MAX_CONCURRENT_PAGES",
+    )
+    menu_extract_retry_count: int = Field(
+        default=2,
+        validation_alias="MENU_EXTRACT_RETRY_COUNT",
+    )
+    menu_extract_retry_backoff_seconds: float = Field(
+        default=0.75,
+        validation_alias="MENU_EXTRACT_RETRY_BACKOFF_SECONDS",
+    )
+    menu_extract_max_pages: int = Field(
+        default=60,
+        validation_alias="MENU_EXTRACT_MAX_PAGES",
+    )
+    menu_extract_page_cap_mode: str = Field(
+        default="truncate",
+        validation_alias="MENU_EXTRACT_PAGE_CAP_MODE",
+    )
+    menu_extract_pdf_dpi: int = Field(
+        default=150,
+        validation_alias="MENU_EXTRACT_PDF_DPI",
+    )
 
     def cors_list(self) -> List[str]:
         raw = self.api_cors_origins.strip()
@@ -30,9 +54,11 @@ class Settings(BaseSettings):
             "http://localhost:5173",
             "http://localhost:5174",
             "http://localhost:5175",
+            "http://localhost:5176",
             "http://127.0.0.1:5173",
             "http://127.0.0.1:5174",
             "http://127.0.0.1:5175",
+            "http://127.0.0.1:5176",
         ]
 
     def supabase_base(self) -> str:

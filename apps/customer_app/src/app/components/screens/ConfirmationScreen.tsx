@@ -5,25 +5,27 @@ import { BotanicalDecor } from "../shared/ArchFrame";
 import { useNavigate, useLocation, useParams } from "react-router";
 import { useMenu } from "../../context/MenuContext";
 import { billConfig } from "../../utils/billConfig";
+import { getOrderFlowBasePath } from "../../utils/orderRoutePaths";
 import { generateReceiptPdf, type OrderSummary } from "../../utils/receiptPdf";
 import * as typography from "../../theme/typography";
+import { haptics } from "../../utils/haptics";
+import { ConfirmationScreenSkeleton } from "../shared/CustomerSkeletons";
 
 export function ConfirmationScreen() {
   const navigate = useNavigate();
   const location = useLocation();
-  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string }>();
-  const basePath =
-    params.slug && params.tableNum
-      ? `/r/${params.slug}/t/${params.tableNum}`
-      : params.restaurantSlug && params.tableNumber
-        ? `/order/${params.restaurantSlug}/table/${params.tableNumber}`
-        : "";
-  const { branding, currency } = useMenu();
+  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string; qrToken?: string }>();
+  const basePath = getOrderFlowBasePath(params);
+  const { branding, currency, billingAddressLines, billingPhone, loading } = useMenu();
   const orderSummary = (location.state as { orderSummary?: OrderSummary } | null)?.orderSummary;
   const orderNumber = orderSummary?.orderNumber ?? `${branding.orderNumberPrefix}${Math.floor(1000 + Math.random() * 9000)}`;
   const tableNo = orderSummary?.tableNo ?? "7";
   const [phase, setPhase] = useState(0);
   const [downloading, setDownloading] = useState(false);
+
+  if (loading) {
+    return <ConfirmationScreenSkeleton />;
+  }
 
   useEffect(() => {
     const t1 = setTimeout(() => setPhase(1), 400);
@@ -38,9 +40,15 @@ export function ConfirmationScreen() {
 
   const handleDownloadReceipt = async () => {
     if (!orderSummary || downloading) return;
+    haptics.gestureMedium();
     setDownloading(true);
     try {
-      await generateReceiptPdf(orderSummary, billConfig, branding.restaurantName, currency);
+      const resolvedBillConfig = {
+        ...billConfig,
+        address: billingAddressLines.length ? billingAddressLines : billConfig.address,
+        phone: billingPhone.trim() ? billingPhone.trim() : billConfig.phone,
+      };
+      await generateReceiptPdf(orderSummary, resolvedBillConfig, branding.restaurantName, currency);
     } finally {
       setDownloading(false);
     }
@@ -206,7 +214,10 @@ export function ConfirmationScreen() {
       {/* Buttons: same width and aligned */}
       <div className="mt-12 w-72 max-w-full flex flex-col items-stretch gap-3">
         <motion.button
-          onClick={() => navigate(basePath ? `${basePath}/menu` : "/menu")}
+          onClick={() => {
+            haptics.gestureMedium();
+            navigate(basePath ? `${basePath}/menu` : "/menu");
+          }}
           className="w-full px-6 py-3 bg-card border border-primary/15 rounded-xl text-foreground/60 active:scale-95 transition-transform"
           style={{ fontFamily: "'Inter', sans-serif", fontSize: "0.8rem", fontWeight: 500 }}
           initial={{ opacity: 0 }}

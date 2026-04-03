@@ -1,18 +1,21 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Download, Copy, QrCode, Check } from 'lucide-react';
 import { SliderShell } from './ui/SliderShell';
 import { useAuth } from '../context/AuthContext';
 import { useMenuConfig } from '../context/MenuConfigContext';
-import { generateTableQr, getApiBaseUrl } from '@restaurant-saas/api-client';
 
 interface QRCodeSliderProps {
   tableNumber: number;
   onClose: () => void;
+  /** Number of tables in the restaurant (for API batch generation). */
+  totalTableCount: number;
+  /** From DB after onboarding or prior generation */
+  storedOrderUrl?: string | null;
+  storedQrPngBase64?: string | null;
 }
 
-const FALLBACK_ORDER_BASE = 'https://order.example.com';
+const FALLBACK_ORDER_BASE = 'http://localhost:5175';
 
-/** URL-safe slug: lowercase, spaces -> hyphens, strip non-alphanumeric except hyphen. Matches Python qr_service. */
 function slugifyRestaurantName(name: string): string {
   if (!name || typeof name !== 'string') return 'default';
   let s = name.trim().toLowerCase();
@@ -22,54 +25,28 @@ function slugifyRestaurantName(name: string): string {
   return s || 'default';
 }
 
-export function QRCodeSlider({ tableNumber, onClose }: QRCodeSliderProps) {
-  const { restaurant, accessToken } = useAuth();
+export function QRCodeSlider({
+  tableNumber,
+  onClose,
+  storedOrderUrl,
+  storedQrPngBase64,
+}: QRCodeSliderProps) {
+  const { restaurant } = useAuth();
   const { branding } = useMenuConfig();
-  const base = import.meta.env.VITE_CUSTOMER_APP_ORIGIN ?? FALLBACK_ORDER_BASE;
+  const base =
+    restaurant?.customerAppOrigin?.trim() ||
+    import.meta.env.VITE_CUSTOMER_APP_ORIGIN ||
+    FALLBACK_ORDER_BASE;
   const slug = restaurant?.slug ?? slugifyRestaurantName(branding.restaurantName);
   const orderUrl = `${base.replace(/\/$/, '')}/order/${slug}/table/${tableNumber}`;
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(orderUrl)}&color=ff6b35`;
   const [copied, setCopied] = useState(false);
-  const [apiQrSrc, setApiQrSrc] = useState<string | null>(null);
-  const [apiOrderUrl, setApiOrderUrl] = useState<string | null>(null);
 
-  const useLocalApi =
-    Boolean(import.meta.env.VITE_API_BASE_URL?.trim()) &&
-    !!accessToken &&
-    !!restaurant?.id;
-
-  useEffect(() => {
-    if (!useLocalApi || !accessToken || !restaurant?.id) {
-      setApiQrSrc(null);
-      setApiOrderUrl(null);
-      return;
-    }
-    let cancelled = false;
-    generateTableQr(
-      { restaurantId: restaurant.id, tableCount: tableNumber },
-      accessToken
-    )
-      .then((res) => {
-        if (cancelled) return;
-        const row = res.tables.find((t) => t.table_number === tableNumber);
-        if (row) {
-          setApiOrderUrl(row.url);
-          setApiQrSrc(`data:image/png;base64,${row.png_base64}`);
-        }
-      })
-      .catch(() => {
-        if (!cancelled) {
-          setApiQrSrc(null);
-          setApiOrderUrl(null);
-        }
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [useLocalApi, accessToken, restaurant?.id, tableNumber]);
-
-  const displayUrl = apiOrderUrl ?? orderUrl;
-  const displayQrSrc = apiQrSrc ?? qrImageUrl;
+  const hasStored = Boolean(storedQrPngBase64?.trim());
+  const displayUrl = storedOrderUrl?.trim() || orderUrl;
+  const displayQrSrc = hasStored
+    ? `data:image/png;base64,${storedQrPngBase64!.trim()}`
+    : qrImageUrl;
   const isDataUrl = displayQrSrc.startsWith('data:');
 
   const handleDownloadQR = async () => {
@@ -104,7 +81,6 @@ export function QRCodeSlider({ tableNumber, onClose }: QRCodeSliderProps) {
       setCopied(true);
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      // Fallback: select a hidden input
       const input = document.createElement('input');
       input.value = displayUrl;
       document.body.appendChild(input);
@@ -123,7 +99,6 @@ export function QRCodeSlider({ tableNumber, onClose }: QRCodeSliderProps) {
       onClose={onClose}
     >
       <div className="flex flex-col items-center">
-        {/* QR Image */}
         <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-6 mb-5">
           <img
             src={displayQrSrc}
@@ -131,19 +106,15 @@ export function QRCodeSlider({ tableNumber, onClose }: QRCodeSliderProps) {
             className="w-[240px] h-[240px]"
           />
         </div>
-        {useLocalApi && apiQrSrc && (
-          <p className="text-[10px] text-gray-400 mb-3 text-center">
-            QR from local API ({getApiBaseUrl().replace(/^https?:\/\//, '')})
-          </p>
+        {hasStored && (
+          <p className="text-[10px] text-gray-400 mb-2 text-center">Stored QR from database</p>
         )}
 
-        {/* Table label */}
         <div className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-5">
           <QrCode className="w-4 h-4" />
           <span className="text-sm">Table {tableNumber}</span>
         </div>
 
-        {/* URL preview */}
         <div className="w-full bg-gray-50 rounded-xl p-3 mb-5">
           <p className="text-xs text-gray-400 mb-1">Order URL</p>
           <p className="text-sm text-gray-600 break-all">
@@ -151,7 +122,6 @@ export function QRCodeSlider({ tableNumber, onClose }: QRCodeSliderProps) {
           </p>
         </div>
 
-        {/* Action Buttons */}
         <div className="w-full space-y-2.5">
           <button
             type="button"

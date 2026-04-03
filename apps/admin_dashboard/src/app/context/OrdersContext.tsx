@@ -4,10 +4,12 @@ import {
   useEffect,
   useState,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from './AuthContext';
+import { playNotificationSound } from '../utils/notificationSound';
 import {
   initialOrders,
   initialTables,
@@ -20,14 +22,31 @@ import {
 interface OrdersState {
   orders: Order[];
   tables: Table[];
+  initialLoading: boolean;
+  refreshing: boolean;
+  /** Backward-compatible alias for initialLoading. */
+  loading: boolean;
+  notifications: AdminNotification[];
   setOrders: (updater: Order[] | ((prev: Order[]) => Order[])) => void;
   setTables: (updater: Table[] | ((prev: Table[]) => Table[])) => void;
   updateOrderStatus: (orderNumber: string, newStatus: OrderStatus) => void;
   updateTableStatus: (tableId: string, status: 'active' | 'inactive') => void;
   updateTableSeats: (tableId: string, seats: number) => void;
+  pushNotification: (notification: Omit<AdminNotification, 'id' | 'createdAt' | 'unread'> & { createdAt?: string }, options?: { playSound?: boolean }) => void;
+  markAllNotificationsRead: () => void;
+  clearNotifications: () => void;
 }
 
 const OrdersContext = createContext<OrdersState | null>(null);
+
+export interface AdminNotification {
+  id: string;
+  type: 'new-order' | 'preparing' | 'served';
+  title: string;
+  description: string;
+  createdAt: string;
+  unread: boolean;
+}
 
 // Mock store for when Supabase is not used
 let mockOrders = [...initialOrders];
@@ -85,12 +104,21 @@ function mapDbOrder(
   };
 }
 
-function mapDbTable(row: { id: string; number: number; status: string; seats: number }): Table {
+function mapDbTable(row: {
+  id: string;
+  number: number;
+  status: string;
+  seats: number;
+  order_url?: string | null;
+  qr_png_base64?: string | null;
+}): Table {
   return {
     id: row.id,
     number: row.number,
     status: row.status as Table['status'],
     seats: row.seats,
+    orderUrl: row.order_url ?? null,
+    qrPngBase64: row.qr_png_base64 ?? null,
   };
 }
 
@@ -98,6 +126,13 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const { restaurant } = useAuth();
   const [orders, setOrdersState] = useState<Order[]>(initialOrders);
   const [tables, setTablesState] = useState<Table[]>(initialTables);
+  const [initialLoading, setInitialLoading] = useState<boolean>(true);
+  const [refreshing, setRefreshing] = useState<boolean>(false);
+  const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const seenOrderIdsRef = useRef<Set<string>>(new Set());
+  const notifiedOrderIdsRef = useRef<Set<string>>(new Set());
+  const tableNumberByIdRef = useRef<Map<string, number>>(new Map());
+  const hasLoadedOnceRef = useRef(false);
 
   const setOrders = useCallback((updater: Order[] | ((prev: Order[]) => Order[])) => {
     setOrdersState((prev) => {
@@ -178,77 +213,394 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const markAllNotificationsRead = useCallback(() => {
+    setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
+  }, []);
+
+  const clearNotifications = useCallback(() => {
+    setNotifications([]);
+  }, []);
+
+  const pushNotification = useCallback(
+    (
+      notification: Omit<AdminNotification, 'id' | 'createdAt' | 'unread'> & { createdAt?: string },
+      options?: { playSound?: boolean }
+    ) => {
+      const createdAt = notification.createdAt ?? new Date().toISOString();
+      const id = `${notification.type}-${createdAt}-${Math.random().toString(36).slice(2, 8)}`;
+      setNotifications((prev) => [
+        {
+          id,
+          type: notification.type,
+          title: notification.title,
+          description: notification.description,
+          createdAt,
+          unread: true,
+        },
+        ...prev,
+      ].slice(0, 50));
+
+      if (options?.playSound !== false) {
+        playNotificationSound();
+      }
+    },
+    []
+  );
+
+  const notifyNewOrder = useCallback(
+    (payload: {
+      id?: string;
+      order_number?: string;
+      table_id?: string;
+      total?: number;
+      placed_at?: string;
+    }) => {
+      if (!payload.id || notifiedOrderIdsRef.current.has(payload.id)) return;
+      notifiedOrderIdsRef.current.add(payload.id);
+      const tableNo = payload.table_id
+        ? (tableNumberByIdRef.current.get(payload.table_id) ?? 0)
+        : 0;
+      const total = Number(payload.total ?? 0);
+      pushNotification(
+        {
+          type: 'new-order',
+          title: `New Order - Table ${tableNo || 'Unknown'}`,
+          description: `${payload.order_number ?? 'Order'} · ₹${Math.round(total)}`,
+          createdAt: payload.placed_at ?? new Date().toISOString(),
+        },
+        { playSound: true }
+      );
+    },
+    [pushNotification]
+  );
+
   useEffect(() => {
     if (!supabase || !restaurant) {
       setOrdersState(mockOrders);
       setTablesState(mockTables);
+      setInitialLoading(false);
+      setRefreshing(false);
+      setNotifications([]);
+      seenOrderIdsRef.current = new Set();
+      notifiedOrderIdsRef.current = new Set();
+      hasLoadedOnceRef.current = false;
       return;
     }
 
-    const load = async () => {
-      const { data: tblRows } = await supabase
-        .from('tables')
-        .select('id, number, status, seats')
-        .eq('restaurant_id', restaurant.id)
-        .order('number');
-      if (tblRows?.length) {
-        setTablesState(tblRows.map(mapDbTable));
-      }
-
-      const { data: ordRows } = await supabase
-        .from('orders')
-        .select(
-          `
-          id, order_number, table_id, status, customer_name, special_instructions,
-          subtotal, tax, total, placed_at,
-          order_items (display_name, portion, quantity, unit_price, line_total, selected_option)
-        `
-        )
-        .eq('restaurant_id', restaurant.id)
-        .order('placed_at', { ascending: false });
-
-      if (ordRows?.length) {
-        const tableMap = new Map<string, number>();
-        (tblRows ?? []).forEach((t) => tableMap.set(t.id, t.number));
-        setOrdersState(
-          ordRows.map((o) =>
-            mapDbOrder(o as Parameters<typeof mapDbOrder>[0], restaurant.name, tableMap.get(o.table_id) ?? 0)
-          )
-        );
+    seenOrderIdsRef.current = new Set();
+    notifiedOrderIdsRef.current = new Set();
+    hasLoadedOnceRef.current = false;
+    const load = async (mode: 'initial' | 'refresh' = 'initial') => {
+      if (mode === 'initial') {
+        setInitialLoading(true);
       } else {
-        setOrdersState([]);
+        setRefreshing(true);
+      }
+      try {
+        const { data: tblRows, error: tblErr } = await supabase
+          .from('tables')
+          .select('id, number, status, seats, order_url, qr_png_base64')
+          .eq('restaurant_id', restaurant.id)
+          .order('number');
+        if (tblErr) throw tblErr;
+
+        if (tblRows?.length) {
+          const mappedTables = tblRows.map(mapDbTable);
+          setTablesState(mappedTables);
+          tableNumberByIdRef.current = new Map(mappedTables.map((t) => [t.id, t.number]));
+        } else {
+          tableNumberByIdRef.current = new Map();
+        }
+
+        const { data: ordRows, error: ordErr } = await supabase
+          .from('orders')
+          .select(
+            `
+            id, order_number, table_id, status, customer_name, special_instructions,
+            subtotal, tax, total, placed_at,
+            order_items (display_name, portion, quantity, unit_price, line_total, selected_option)
+          `
+          )
+          .eq('restaurant_id', restaurant.id)
+          .order('placed_at', { ascending: false });
+        if (ordErr) throw ordErr;
+
+        if (ordRows?.length) {
+          const tableMap = new Map<string, number>();
+          (tblRows ?? []).forEach((t) => tableMap.set(t.id, t.number));
+          setOrdersState(
+            ordRows.map((o) =>
+              mapDbOrder(o as Parameters<typeof mapDbOrder>[0], restaurant.name, tableMap.get(o.table_id) ?? 0)
+            )
+          );
+          const incomingIds = new Set<string>();
+          for (const row of ordRows) {
+            if (!row.id) continue;
+            incomingIds.add(row.id);
+            if (!hasLoadedOnceRef.current && !seenOrderIdsRef.current.has(row.id)) {
+              // First hydration should not ring for historical orders.
+              seenOrderIdsRef.current.add(row.id);
+              continue;
+            }
+            if (!seenOrderIdsRef.current.has(row.id)) {
+              seenOrderIdsRef.current.add(row.id);
+              notifyNewOrder({
+                id: row.id,
+                order_number: row.order_number ?? undefined,
+                table_id: row.table_id ?? undefined,
+                total: row.total ?? undefined,
+                placed_at: row.placed_at ?? undefined,
+              });
+            }
+          }
+          // Keep seen IDs trimmed to active query scope.
+          seenOrderIdsRef.current = incomingIds;
+          hasLoadedOnceRef.current = true;
+        } else {
+          setOrdersState([]);
+          seenOrderIdsRef.current = new Set();
+          hasLoadedOnceRef.current = true;
+        }
+      } catch (err) {
+        console.error('Failed to load orders/tables', err);
+      } finally {
+        if (mode === 'initial') {
+          setInitialLoading(false);
+        } else {
+          setRefreshing(false);
+        }
       }
     };
 
-    load();
+    void load('initial');
+
+    let pollInterval: ReturnType<typeof window.setInterval> | null = null;
+    let subscribeWatchdog: ReturnType<typeof window.setTimeout> | null = null;
+    const startPollingFallback = (reason: string) => {
+      if (pollInterval) return;
+      console.warn('[orders] realtime not subscribed; starting polling fallback', {
+        restaurantId: restaurant.id,
+        reason,
+      });
+      pollInterval = window.setInterval(() => {
+        void load('refresh');
+      }, 3000);
+    };
+    const stopPollingFallback = () => {
+      if (pollInterval) {
+        window.clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
 
     const sub = supabase
-      .channel('orders-changes')
+      .channel(`restaurant-${restaurant.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'orders',
+          filter: `restaurant_id=eq.${restaurant.id}`,
+        },
+        (payload) => {
+          const handleInsert = async () => {
+            const insertedNew = (payload?.new ?? {}) as Partial<{
+              id: string;
+              order_number: string | null;
+              table_id: string | null;
+              restaurant_id: string | null;
+              total: number | null;
+              placed_at: string | null;
+            }>;
+
+            const incomingRestaurantId = insertedNew.restaurant_id ?? null;
+            if (incomingRestaurantId && incomingRestaurantId !== restaurant.id) return;
+
+            const extracted = {
+              id: insertedNew.id,
+              order_number: insertedNew.order_number ?? undefined,
+              table_id: insertedNew.table_id ?? undefined,
+              total: insertedNew.total ?? undefined,
+              placed_at: insertedNew.placed_at ?? undefined,
+            };
+
+            const isNonEmptyString = (v: unknown) => typeof v === 'string' && v.trim().length > 0;
+            const isValidTotal = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+
+            const needsFallback =
+              !isNonEmptyString(extracted.id) ||
+              !isNonEmptyString(extracted.order_number) ||
+              !isNonEmptyString(extracted.table_id) ||
+              !isNonEmptyString(extracted.placed_at) ||
+              !isValidTotal(extracted.total);
+
+            let nextPayload = extracted;
+
+            if (needsFallback) {
+              // Realtime payload can occasionally arrive without all columns; recover by querying Supabase.
+              // Priority: match by order_number (when available), otherwise pick newest by placed_at.
+              const { id, order_number } = extracted;
+
+              let fetched:
+                | {
+                    id: string;
+                    order_number: string | null;
+                    table_id: string | null;
+                    total: number | null;
+                    placed_at: string | null;
+                  }
+                | null = null;
+
+              if (id) {
+                const { data } = await supabase
+                  .from('orders')
+                  .select('id, order_number, table_id, total, placed_at')
+                  .eq('restaurant_id', restaurant.id)
+                  .eq('id', id)
+                  .maybeSingle();
+                fetched = data ?? null;
+              } else if (order_number) {
+                const { data } = await supabase
+                  .from('orders')
+                  .select('id, order_number, table_id, total, placed_at')
+                  .eq('restaurant_id', restaurant.id)
+                  .eq('order_number', order_number)
+                  .order('placed_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+                fetched = data ?? null;
+              } else {
+                const { data } = await supabase
+                  .from('orders')
+                  .select('id, order_number, table_id, total, placed_at')
+                  .eq('restaurant_id', restaurant.id)
+                  .order('placed_at', { ascending: false })
+                  .limit(1)
+                  .maybeSingle();
+                fetched = data ?? null;
+              }
+
+              if (!fetched?.id) {
+                console.warn('New order notification: realtime payload missing fields; fallback query returned none.', {
+                  restaurantId: restaurant.id,
+                  extracted,
+                });
+                void load('refresh');
+                return;
+              }
+
+              nextPayload = {
+                id: fetched.id,
+                order_number: fetched.order_number ?? undefined,
+                table_id: fetched.table_id ?? undefined,
+                total: fetched.total ?? undefined,
+                placed_at: fetched.placed_at ?? undefined,
+              };
+            }
+
+            if (nextPayload.id) seenOrderIdsRef.current.add(nextPayload.id);
+            notifyNewOrder(nextPayload);
+            try {
+              await load('refresh');
+            } catch (err) {
+              console.error('Failed to refresh orders after realtime insert', err);
+            }
+          };
+
+          void handleInsert().catch((err) => {
+            console.error('Realtime order INSERT handler failed', err);
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'orders',
+          filter: `restaurant_id=eq.${restaurant.id}`,
+        },
+        () => {
+          // Keeps status changes (preparing/served) in sync across open admin tabs.
+          void load('refresh').catch((err) =>
+            console.error('Failed to refresh orders after realtime update', err)
+          );
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'orders',
+          filter: `restaurant_id=eq.${restaurant.id}`,
+        },
+        () => {
+          void load('refresh').catch((err) =>
+            console.error('Failed to refresh orders after realtime delete', err)
+          );
+        }
+      )
       .on(
         'postgres_changes',
         {
           event: '*',
           schema: 'public',
-          table: 'orders',
+          table: 'tables',
           filter: `restaurant_id=eq.${restaurant.id}`,
         },
-        () => load()
+        (payload) => {
+          const nextRid =
+            ((payload?.new ?? {}) as Partial<{ restaurant_id: string | null }>).restaurant_id ??
+            ((payload?.old ?? {}) as Partial<{ restaurant_id: string | null }>).restaurant_id ??
+            null;
+          if (nextRid && nextRid !== restaurant.id) return;
+          void load('refresh').catch((err) => console.error('Failed to refresh tables after realtime change', err));
+        }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.info('[orders] realtime channel status', { restaurantId: restaurant.id, status });
+        if (status === 'SUBSCRIBED') {
+          stopPollingFallback();
+          if (subscribeWatchdog) {
+            window.clearTimeout(subscribeWatchdog);
+            subscribeWatchdog = null;
+          }
+          return;
+        }
+        if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+          startPollingFallback(status);
+        }
+      });
+
+    // If subscribe never reaches SUBSCRIBED (blocked websockets, replication off), still refresh.
+    subscribeWatchdog = window.setTimeout(() => {
+      startPollingFallback('watchdog_timeout');
+    }, 5000);
 
     return () => {
+      stopPollingFallback();
+      if (subscribeWatchdog) window.clearTimeout(subscribeWatchdog);
       sub.unsubscribe();
     };
-  }, [restaurant?.id]);
+  }, [restaurant?.id, notifyNewOrder]);
 
   const value: OrdersState = {
     orders,
     tables,
+    initialLoading,
+    refreshing,
+    loading: initialLoading,
+    notifications,
     setOrders,
     setTables,
     updateOrderStatus,
     updateTableStatus,
     updateTableSeats,
+    pushNotification,
+    markAllNotificationsRead,
+    clearNotifications,
   };
 
   return (

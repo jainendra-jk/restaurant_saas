@@ -1,17 +1,17 @@
 {
   "currency": "\u20b9",
   "palette": {
-    "primary": "#738053",
-    "secondary": "#332d29",
-    "background": "#f8fbf3",
-    "accent": "#e1ddcb"
+    "primary": "#f97316",
+    "secondary": "#1a1a2e",
+    "background": "#f8f9fb",
+    "accent": "#fff7ed"
   },
   "branding": {
-    "restaurantName": "OONA",
-    "tagline": "THE ONE",
-    "welcomeMessage": "Welcome to Oona, The One. Discover our authentic Indian Tandoori Starters.",
-    "preparingMessage": "Your Oona order is being prepared with fresh, quality ingredients.",
-    "orderNumberPrefix": "OONA-"
+    "restaurantName": "SMART MENU",
+    "tagline": "DIGITAL MENU REVOLUTION",
+    "welcomeMessage": "Welcome to Smart Menu.",
+    "preparingMessage": "Your order is being prepared with fresh, quality ingredients.",
+    "orderNumberPrefix": "SM-"
   },
   "categories": [
     {

@@ -11,6 +11,19 @@ interface OrderSliderProps {
   onClose: () => void;
 }
 
+function getOrderBadgeValue(orderNumber: string): string {
+  const trimmed = orderNumber.trim();
+  if (!trimmed) return '—';
+
+  const dashIndex = trimmed.indexOf('-');
+  if (dashIndex >= 0) {
+    const suffix = trimmed.slice(dashIndex + 1).trim();
+    if (suffix) return suffix;
+  }
+
+  return trimmed;
+}
+
 export function OrderSlider({ tableNumber, orders, onClose }: OrderSliderProps) {
   const { branding } = useMenuConfig();
   const tableOrders = orders
@@ -56,7 +69,7 @@ export function OrderSlider({ tableNumber, orders, onClose }: OrderSliderProps) 
                 </div>
                 <div className="flex items-center gap-2 mb-3">
                   <span className="text-xs text-gray-500 bg-white px-2 py-0.5 rounded-md border border-gray-100">
-                    {branding.orderNumberPrefix}{order.orderNumber.split('-')[1]}
+                    {branding.orderNumberPrefix}{getOrderBadgeValue(order.orderNumber)}
                   </span>
                   {order.customerName != null && <span className="text-xs text-gray-500">{order.customerName}</span>}
                 </div>

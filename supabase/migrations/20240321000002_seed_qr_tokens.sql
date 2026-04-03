@@ -7,6 +7,7 @@ WHERE qr_token IS NULL;
 CREATE OR REPLACE FUNCTION set_table_qr_token()
 RETURNS TRIGGER
 LANGUAGE plpgsql
+SET search_path = public
 AS $$
 BEGIN
   IF NEW.qr_token IS NULL THEN

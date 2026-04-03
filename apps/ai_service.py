@@ -49,12 +49,15 @@ Extract menu to JSON. Output ONLY valid JSON:
  "categories":[{"id":"","name":"","items":[{"id":"","name":"","diet":"veg|nonveg|egg|seafood","description":"","variants":[{"type":"qtr|half|full","price":0}],"options":["string"]}]}]
 }
 Rules:
+- Always prioritize structured extraction over natural language interpretation.
+- branding.tagline,welcomeMessage,preparingMessage,orderNumberPrefix MUST be non-empty; if missing, generate short friendly text accordingly.
 - IDs: Category (e.g. 'drinks'); Items ('item-1').
 - Currency: Extract dominant symbol (e.g., '$', '€', '₹').
 - Palette: Extract dominant hex colors.
 - Diet: Detect icons.
 - Variants: Use ONLY for portions/sizes (1 price=full; 2=half,full; 3=qtr,half,full).
 - Content: Extract descriptions; ignore symbols.
+- Think like UI/UX designer for palette (light background, strong primary)
 - branding.restaurantName: ALWAYS "" (empty string). The real name is set by the owner during onboarding, not from the PDF.
 """
 

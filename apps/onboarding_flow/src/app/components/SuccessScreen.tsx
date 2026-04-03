@@ -5,8 +5,15 @@ import confetti from "canvas-confetti";
 
 const DEFAULT_ADMIN_URL = "http://localhost:5174";
 
-export function SuccessScreen({ adminDashboardUrl }: { adminDashboardUrl?: string }) {
-  const url = adminDashboardUrl || DEFAULT_ADMIN_URL;
+export function SuccessScreen({
+  adminDashboardUrl,
+  footnote,
+}: {
+  adminDashboardUrl?: string;
+  footnote?: string | null;
+}) {
+  const url = (adminDashboardUrl || DEFAULT_ADMIN_URL).trim();
+  const loginUrl = `${url.replace(/\/+$/, '')}/login`;
   useEffect(() => {
     const duration = 2000;
     const end = Date.now() + duration;
@@ -70,7 +77,7 @@ export function SuccessScreen({ adminDashboardUrl }: { adminDashboardUrl?: strin
       </motion.p>
 
       <motion.a
-        href={url}
+        href={loginUrl}
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.6 }}
@@ -79,8 +86,19 @@ export function SuccessScreen({ adminDashboardUrl }: { adminDashboardUrl?: strin
         className="w-full py-4 rounded-xl text-white cursor-pointer flex items-center justify-center"
         style={{ backgroundColor: "#f97316" }}
       >
-        Go to Dashboard
+        Go to Login
       </motion.a>
+
+      {footnote ? (
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.75 }}
+          className="text-xs text-amber-800/90 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2 mt-4 text-left w-full"
+        >
+          {footnote}
+        </motion.p>
+      ) : null}
 
       <motion.p
         initial={{ opacity: 0 }}

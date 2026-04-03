@@ -8,6 +8,50 @@ export function getApiBaseUrl(): string {
   return 'http://localhost:8000';
 }
 
+export interface LogoutOnClosePayload {
+  accessToken: string;
+  eventId: string;
+  delayMs?: number;
+}
+
+export function sendLogoutOnCloseBeacon(payload: LogoutOnClosePayload): boolean {
+  if (typeof navigator === 'undefined') return false;
+  const body = JSON.stringify({
+    access_token: payload.accessToken,
+    event_id: payload.eventId,
+    delay_ms: payload.delayMs ?? 2500,
+  });
+  const url = `${getApiBaseUrl()}/v1/auth/logout-on-close`;
+  if (typeof navigator.sendBeacon === 'function') {
+    const blob = new Blob([body], { type: 'application/json' });
+    return navigator.sendBeacon(url, blob);
+  }
+  fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    keepalive: true,
+  }).catch(() => undefined);
+  return true;
+}
+
+export async function cancelLogoutOnClose(
+  accessToken: string,
+  eventId: string
+): Promise<boolean> {
+  const res = await fetch(`${getApiBaseUrl()}/v1/auth/cancel-logout-on-close`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ event_id: eventId }),
+  });
+  if (!res.ok) return false;
+  const data = (await res.json()) as { cancelled?: boolean };
+  return !!data.cancelled;
+}
+
 export async function extractMenuFromPdf(
   file: File,
   accessToken: string,
@@ -89,4 +133,35 @@ export async function generateTableQr(
     throw new Error(detail);
   }
   return data as QrGenerateResponse;
+}
+
+/** Persist extracted menu JSON to Supabase via API (replaces all categories/items for the restaurant). */
+export async function replaceMenuFromExtract(
+  restaurantId: string,
+  menu: unknown,
+  accessToken: string
+): Promise<void> {
+  const base = getApiBaseUrl();
+  const res = await fetch(`${base}/v1/menu/replace`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${accessToken}`,
+    },
+    body: JSON.stringify({ restaurant_id: restaurantId, menu }),
+  });
+  const text = await res.text();
+  let data: unknown;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    throw new Error(res.ok ? 'Invalid JSON from API' : text || res.statusText);
+  }
+  if (!res.ok) {
+    const detail =
+      data && typeof data === 'object' && data !== null && 'detail' in data
+        ? String((data as { detail: unknown }).detail)
+        : text || res.statusText;
+    throw new Error(detail);
+  }
 }

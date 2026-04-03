@@ -1,5 +1,5 @@
 import { motion } from "motion/react";
-import { Pencil, Store, User, Phone, Mail, MapPin, Building2, Hash, FileText, ShieldCheck, Globe, Lock, LayoutGrid, CheckCircle2 } from "lucide-react";
+import { Pencil, Store, User, Phone, Mail, MapPin, Building2, Hash, FileText, ShieldCheck, Lock, LayoutGrid, CheckCircle2, Loader2 } from "lucide-react";
 
 interface FormData {
   restaurantName: string;
@@ -13,13 +13,12 @@ interface FormData {
   gstNumber: string;
   fssaiNumber: string;
   tables: string;
-  username: string;
   password: string;
-  domain: string;
 }
 
 interface ReviewScreenProps {
   formData: FormData;
+  menuPdfFileName?: string | null;
   onConfirm: () => void | Promise<void>;
   onEdit: (step: number, subStep: number) => void;
   isSubmitting?: boolean;
@@ -44,17 +43,21 @@ const sections = [
   },
   {
     title: "Dashboard Setup",
-    step: 3,
+    step: 2,
     fields: [
       { key: "tables", label: "Tables", icon: LayoutGrid, subStep: 0 },
-      { key: "username", label: "Admin Username", icon: User, subStep: 1 },
-      { key: "password", label: "Password", icon: Lock, subStep: 2 },
-      { key: "domain", label: "Domain", icon: Globe, subStep: 3 },
+      { key: "password", label: "Password", icon: Lock, subStep: 1 },
     ],
   },
 ];
 
-export function ReviewScreen({ formData, onConfirm, onEdit, isSubmitting }: ReviewScreenProps) {
+export function ReviewScreen({
+  formData,
+  menuPdfFileName,
+  onConfirm,
+  onEdit,
+  isSubmitting,
+}: ReviewScreenProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -134,6 +137,38 @@ export function ReviewScreen({ formData, onConfirm, onEdit, isSubmitting }: Revi
               </div>
             </motion.div>
           ))}
+
+          <motion.div
+            initial={{ opacity: 0, y: 15 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 + sections.length * 0.1 }}
+          >
+            <p
+              className="text-xs uppercase tracking-wider mb-2 ml-1"
+              style={{ color: "#f97316" }}
+            >
+              Menu
+            </p>
+            <div className="bg-gray-50/70 rounded-2xl border border-gray-100 overflow-hidden">
+              <div className="flex items-center gap-3 px-4 py-3 group">
+                <div className="w-8 h-8 rounded-lg bg-white border border-gray-100 flex items-center justify-center shrink-0">
+                  <FileText className="w-4 h-4 text-gray-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs text-gray-400">Menu PDF</p>
+                  <p className="text-gray-800 truncate">
+                    {menuPdfFileName?.trim() ? menuPdfFileName : "—"}
+                  </p>
+                </div>
+                <button
+                  onClick={() => onEdit(3, 0)}
+                  className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-300 hover:text-orange-500 hover:bg-orange-50 transition-all duration-200 opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
+                >
+                  <Pencil className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </motion.div>
         </div>
 
         {/* Confirm */}
@@ -148,7 +183,11 @@ export function ReviewScreen({ formData, onConfirm, onEdit, isSubmitting }: Revi
           className="w-full flex items-center justify-center gap-2 py-4 rounded-xl text-white cursor-pointer transition-shadow hover:shadow-lg hover:shadow-orange-200"
           style={{ backgroundColor: "#f97316" }}
         >
-          <CheckCircle2 className="w-5 h-5" />
+          {isSubmitting ? (
+            <Loader2 className="w-5 h-5 animate-spin" aria-hidden="true" />
+          ) : (
+            <CheckCircle2 className="w-5 h-5" />
+          )}
           {isSubmitting ? "Setting up..." : "Confirm & Launch"}
         </motion.button>
       </div>

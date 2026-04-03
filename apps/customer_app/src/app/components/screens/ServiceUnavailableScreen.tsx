@@ -1,8 +1,9 @@
 import { motion } from "motion/react";
 import { Leaf } from "lucide-react";
 import { BotanicalDecor } from "../shared/ArchFrame";
-import { branding } from "../shared/menu-data";
+import { useMenu } from "../../context/MenuContext";
 import * as typography from "../../theme/typography";
+import { haptics } from "../../utils/haptics";
 
 const GOOGLE_LENS_URL = "https://lens.google.com";
 
@@ -11,7 +12,9 @@ const GOOGLE_LENS_URL = "https://lens.google.com";
  * so when a different menu/theme is loaded, this page updates accordingly.
  */
 export function ServiceUnavailableScreen() {
+  const { branding } = useMenu();
   const handleTryAgain = () => {
+    haptics.gestureMedium();
     window.location.href = GOOGLE_LENS_URL;
   };
 

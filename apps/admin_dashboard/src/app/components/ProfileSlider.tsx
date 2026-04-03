@@ -22,6 +22,7 @@ import {
   type RestaurantProfile,
   type TaxRule,
 } from '../context/RestaurantProfileContext';
+import { toast } from 'sonner';
 
 const MAX_LOGO_BYTES = 2 * 1024 * 1024; // 2MB
 
@@ -66,6 +67,7 @@ const getInitialProfile = (restaurantName: string): RestaurantProfile => ({
   description:
     'A fine-dining restaurant offering authentic Indian cuisine with a modern twist. Known for our signature Paneer Butter Masala and Tandoori platters.',
   taxRules: [],
+  isOpen: true,
 });
 
 interface ProfileSliderProps {
@@ -109,9 +111,20 @@ export function ProfileSlider({ onClose }: ProfileSliderProps) {
     }));
   };
 
-  const handleSave = () => {
-    saveProfile(profile);
-    onClose();
+  const handleSave = async () => {
+    try {
+      await saveProfile(profile);
+      toast.success('Profile saved successfully', {
+        closeButton: false,
+      });
+      onClose();
+    } catch (error) {
+      const message =
+        error instanceof Error && error.message
+          ? error.message
+          : 'Failed to save profile. Please try again.';
+      toast.error(message);
+    }
   };
 
   const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -222,6 +235,24 @@ export function ProfileSlider({ onClose }: ProfileSliderProps) {
       {/* Timings & Capacity */}
       <SectionHeader icon={Clock} label="Timings & Capacity" />
       <div className="space-y-3">
+        <label className="flex items-center justify-between rounded-xl border border-gray-200 bg-white px-3 py-2">
+          <span className="text-sm text-gray-700">Store Open for QR Orders</span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={profile.isOpen}
+            onClick={() => setProfile((prev) => ({ ...prev, isOpen: !prev.isOpen }))}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              profile.isOpen ? 'bg-primary' : 'bg-gray-300'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
+                profile.isOpen ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </label>
         <div className="flex gap-3">
           <FormField
             label="Opening Time"

@@ -5,12 +5,14 @@ import {
   useState,
   useMemo,
   useCallback,
+  useRef,
   type ReactNode,
 } from 'react';
 import type { MenuConfig, MenuConfigCategory, MenuConfigItem } from '../types/menu-config';
 import type { MenuItem } from '../data/mock-data';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from './AuthContext';
+import { saveMenuConfigToSupabase } from '../utils/saveMenuToSupabase';
 
 const CONFIG_URL = '/menu.json';
 
@@ -47,7 +49,6 @@ function applyPalette(palette: MenuConfig['palette']) {
 }
 
 function mapConfigToMenuItem(item: MenuConfigItem, categoryName: string, categoryId: string): MenuItem {
-  const isVeg = item.diet === 'veg';
   const price =
     item.variants.length > 0
       ? Math.min(...item.variants.map((v) => v.price))
@@ -62,12 +63,13 @@ function mapConfigToMenuItem(item: MenuConfigItem, categoryName: string, categor
   const flavours = item.options?.length ? item.options : undefined;
   return {
     id: `${categoryId}-${item.id}`,
+    persistentId: item.id,
     name: item.name,
     price,
     categories: [categoryName],
     image: '',
-    isVeg,
-    isAvailable: true,
+    diet: item.diet,
+    isAvailable: item.isAvailable ?? true,
     description: item.description ?? '',
     sizes,
     flavours,
@@ -172,6 +174,7 @@ function normalizeExtractedMenuPayload(
         description: String(item.description ?? ''),
         options,
         variants,
+        isAvailable: true,
       });
     }
     if (items.length > 0) {
@@ -344,6 +347,7 @@ const DEFAULT_CONFIG: MenuConfig = {
 
 interface MenuConfigState {
   config: MenuConfig;
+  configVersion: number;
   branding: MenuConfig['branding'] & { currency: string };
   categories: string[];
   menuItems: MenuItem[];
@@ -351,6 +355,8 @@ interface MenuConfigState {
   error: string | null;
   /** Apply JSON from POST /v1/menu/extract (merges canonical restaurant name from auth). */
   applyExtractedMenu: (payload: unknown) => void;
+  /** Replace menu_categories/menu_items in Supabase with current config. */
+  saveMenuToDatabase: (nextConfig?: MenuConfig) => Promise<{ error: string | null }>;
 }
 
 const MenuConfigContext = createContext<MenuConfigState | null>(null);
@@ -358,83 +364,99 @@ const MenuConfigContext = createContext<MenuConfigState | null>(null);
 export function MenuConfigProvider({ children }: { children: ReactNode }) {
   const { restaurant } = useAuth();
   const [config, setConfig] = useState<MenuConfig>(DEFAULT_CONFIG);
+  const [configVersion, setConfigVersion] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const refreshTimerRef = useRef<number | null>(null);
+
+  const applyCanonicalConfig = useCallback(
+    (next: MenuConfig) => {
+      setConfig(next);
+      setConfigVersion((v) => v + 1);
+    },
+    []
+  );
+
+  const loadFromSupabase = useCallback(async (restaurantId: string) => {
+    if (!supabase) throw new Error('Supabase not configured');
+    const { data: cats, error: catErr } = await supabase
+      .from('menu_categories')
+      .select('id, slug, name, sort_order')
+      .eq('restaurant_id', restaurantId)
+      .order('sort_order');
+    if (catErr) throw catErr;
+    if (!cats?.length) return null;
+    const categoryIds = cats.map((c) => c.id);
+    const { data: items, error: itemErr } = await supabase
+      .from('menu_items')
+      .select('id, category_id, slug, name, diet, description, variants, options, is_available')
+      .in('category_id', categoryIds)
+      .order('sort_order');
+    if (itemErr) throw itemErr;
+    const itemsByCat = (items ?? []).reduce<Record<string, typeof items>>((acc, it) => {
+      const cid = it.category_id;
+      if (!acc[cid]) acc[cid] = [];
+      acc[cid].push(it);
+      return acc;
+    }, {});
+    const categories: MenuConfigCategory[] = cats.map((c) => ({
+      id: c.slug,
+      name: c.name,
+      items: (itemsByCat[c.id] ?? []).map((it) => ({
+        id: it.slug,
+        name: it.name,
+        diet: (it.diet || 'veg') as MenuConfigItem['diet'],
+        description: it.description ?? '',
+        options: Array.isArray(it.options) ? it.options : [],
+        variants: Array.isArray(it.variants) ? it.variants : [],
+        isAvailable: it.is_available ?? true,
+      })),
+    }));
+    return { categories };
+  }, []);
+
+  const buildConfigFromRestaurant = useCallback(
+    (categories: MenuConfigCategory[]) => {
+      const restBranding = (restaurant?.branding ?? {}) as Record<string, string>;
+      return {
+        palette: restaurant?.palette?.primary
+          ? (restaurant.palette as MenuConfig['palette'])
+          : DEFAULT_CONFIG.palette,
+        branding: {
+          restaurantName: restaurant?.name ?? DEFAULT_CONFIG.branding.restaurantName,
+          tagline: restBranding?.tagline ?? '',
+          welcomeMessage: restBranding?.welcomeMessage ?? 'Welcome back',
+          orderNumberPrefix: restBranding?.orderNumberPrefix ?? '#',
+        },
+        currency: restaurant?.currency ?? 'Rs',
+        categories,
+      } satisfies MenuConfig;
+    },
+    [restaurant]
+  );
 
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
     setError(null);
 
-    const loadFromSupabase = async (restaurantId: string) => {
-      if (!supabase) throw new Error('Supabase not configured');
-      const { data: cats, error: catErr } = await supabase
-        .from('menu_categories')
-        .select('id, slug, name, sort_order')
-        .eq('restaurant_id', restaurantId)
-        .order('sort_order');
-      if (catErr) throw catErr;
-      if (!cats?.length) return null;
-      const categoryIds = cats.map((c) => c.id);
-      const { data: items, error: itemErr } = await supabase
-        .from('menu_items')
-        .select('id, category_id, slug, name, diet, description, variants, options, is_available')
-        .in('category_id', categoryIds)
-        .order('sort_order');
-      if (itemErr) throw itemErr;
-      const itemsByCat = (items ?? []).reduce<Record<string, typeof items>>((acc, it) => {
-        const cid = it.category_id;
-        if (!acc[cid]) acc[cid] = [];
-        acc[cid].push(it);
-        return acc;
-      }, {});
-      const categories: MenuConfigCategory[] = cats.map((c) => ({
-        id: c.slug,
-        name: c.name,
-        items: (itemsByCat[c.id] ?? []).map((it) => ({
-          id: it.slug,
-          name: it.name,
-          diet: (it.diet || 'veg') as MenuConfigItem['diet'],
-          description: it.description ?? '',
-          options: Array.isArray(it.options) ? it.options : [],
-          variants: Array.isArray(it.variants) ? it.variants : [],
-        })),
-      }));
-      return { categories };
-    };
-
     if (supabase && restaurant) {
       loadFromSupabase(restaurant.id)
         .then((supaData) => {
           if (cancelled) return;
-          if (supaData?.categories?.length) {
-            const restBranding = restaurant.branding as Record<string, string>;
-            setConfig({
-              palette: restaurant.palette?.primary ? restaurant.palette as MenuConfig['palette'] : DEFAULT_CONFIG.palette,
-              branding: {
-                restaurantName: restaurant.name,
-                tagline: restBranding?.tagline ?? '',
-                welcomeMessage: restBranding?.welcomeMessage ?? 'Welcome back',
-                orderNumberPrefix: restBranding?.orderNumberPrefix ?? '#',
-              },
-              currency: restaurant.currency,
-              categories: supaData.categories,
-            });
-          } else {
-            fetch(CONFIG_URL)
-              .then((res) => (res.ok ? res.json() : Promise.reject(new Error(`${res.status}`))))
-              .then((data: unknown) => {
-                if (cancelled) return;
-                if (data && typeof data === 'object' && data !== null && 'categories' in data && Array.isArray((data as MenuConfig).categories)) {
-                  setConfig(data as MenuConfig);
-                } else setConfig(DEFAULT_CONFIG);
-              })
-              .catch(() => setConfig(DEFAULT_CONFIG));
-          }
+          applyCanonicalConfig(buildConfigFromRestaurant(supaData?.categories ?? []));
         })
         .catch((err) => {
           if (!cancelled) {
-            setConfig(DEFAULT_CONFIG);
+            applyCanonicalConfig({
+              ...DEFAULT_CONFIG,
+              branding: {
+                ...DEFAULT_CONFIG.branding,
+                restaurantName: restaurant.name,
+              },
+              categories: [],
+              currency: restaurant.currency,
+            });
             setError(err instanceof Error ? err.message : 'Failed to load menu');
           }
         })
@@ -458,15 +480,15 @@ export function MenuConfigProvider({ children }: { children: ReactNode }) {
             'categories' in data &&
             Array.isArray((data as MenuConfig).categories)
           ) {
-            setConfig(data as MenuConfig);
+            applyCanonicalConfig(data as MenuConfig);
           } else {
-            setConfig(DEFAULT_CONFIG);
+            applyCanonicalConfig(DEFAULT_CONFIG);
             setError('Invalid menu config shape; using defaults');
           }
         })
         .catch((err) => {
           if (!cancelled) {
-            setConfig(DEFAULT_CONFIG);
+            applyCanonicalConfig(DEFAULT_CONFIG);
             setError(err instanceof Error ? err.message : 'Failed to load menu.json');
           }
         })
@@ -477,7 +499,51 @@ export function MenuConfigProvider({ children }: { children: ReactNode }) {
     return () => {
       cancelled = true;
     };
-  }, [restaurant?.id]);
+  }, [restaurant?.id, loadFromSupabase, buildConfigFromRestaurant, applyCanonicalConfig]);
+
+  useEffect(() => {
+    if (!supabase || !restaurant?.id) return;
+    if (refreshTimerRef.current) {
+      window.clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = null;
+    }
+
+    const scheduleRefresh = () => {
+      if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = window.setTimeout(async () => {
+        try {
+          const next = await loadFromSupabase(restaurant.id);
+          applyCanonicalConfig(buildConfigFromRestaurant(next?.categories ?? []));
+          setError(null);
+        } catch (e) {
+          setError(e instanceof Error ? e.message : 'Failed to refresh menu');
+        }
+      }, 300);
+    };
+
+    const channel = supabase
+      .channel(`admin-menu-config-${restaurant.id}`)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_categories', filter: `restaurant_id=eq.${restaurant.id}` },
+        scheduleRefresh
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'restaurants', filter: `id=eq.${restaurant.id}` },
+        scheduleRefresh
+      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, scheduleRefresh)
+      .subscribe();
+
+    return () => {
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+      channel.unsubscribe();
+    };
+  }, [restaurant?.id, loadFromSupabase, buildConfigFromRestaurant, applyCanonicalConfig]);
 
   useEffect(() => {
     applyPalette(config.palette);
@@ -487,15 +553,34 @@ export function MenuConfigProvider({ children }: { children: ReactNode }) {
     (payload: unknown) => {
       const name = restaurant?.name?.trim() ?? '';
       const next = normalizeExtractedMenuPayload(payload, name);
-      setConfig(next);
+      applyCanonicalConfig(next);
       setError(null);
     },
-    [restaurant?.name]
+    [restaurant?.name, applyCanonicalConfig]
   );
+
+  const saveMenuToDatabase = useCallback(async (nextConfig?: MenuConfig) => {
+    if (!supabase || !restaurant) {
+      return { error: 'Supabase not configured or not signed in' };
+    }
+    const targetConfig = nextConfig ?? config;
+    const { error: saveErr } = await saveMenuConfigToSupabase(
+      supabase,
+      restaurant.id,
+      targetConfig,
+      restaurant.branding as Record<string, unknown>
+    );
+    if (!saveErr) {
+      applyCanonicalConfig(targetConfig);
+      setError(null);
+    }
+    return { error: saveErr };
+  }, [restaurant, config, applyCanonicalConfig]);
 
   const value = useMemo<MenuConfigState>(
     () => ({
       config,
+      configVersion,
       branding: {
         ...config.branding,
         currency: config.currency?.trim() ?? config.branding.currency?.trim() ?? 'Rs',
@@ -505,8 +590,9 @@ export function MenuConfigProvider({ children }: { children: ReactNode }) {
       loading,
       error,
       applyExtractedMenu,
+      saveMenuToDatabase,
     }),
-    [config, loading, error, applyExtractedMenu]
+    [config, configVersion, loading, error, applyExtractedMenu, saveMenuToDatabase]
   );
 
   return (

@@ -21,6 +21,9 @@ import { DietIndicator } from "../shared/DietIndicator";
 import { FoodCategoryIcon } from "../shared/FoodCategoryIcon";
 import { PORTION_LABELS } from "../../constants/portions";
 import * as typography from "../../theme/typography";
+import { formatPrice } from "../../utils/formatPrice";
+import { haptics } from "../../utils/haptics";
+import { MenuScreenSkeleton } from "../shared/CustomerSkeletons";
 
 function PortionCapsule({
   selected,
@@ -45,7 +48,10 @@ function PortionCapsule({
         return (
           <button
             key={key}
-            onClick={() => onChange(key)}
+            onClick={() => {
+              haptics.gestureLight();
+              onChange(key);
+            }}
             className={`relative z-10 flex-1 min-w-0 px-2 py-1.5 active:scale-95 transition-colors duration-200 ${
               selected === key
                 ? "text-primary-foreground"
@@ -93,6 +99,7 @@ function MenuItemCard({ item, currency }: { item: MenuItem; currency: string }) 
 
   const handleAdd = () => {
     addItem(item, selectedPortion, selectedOption);
+    haptics.cartAdd();
     setShowAdded(true);
     setTimeout(() => setShowAdded(false), 800);
   };
@@ -110,8 +117,10 @@ function MenuItemCard({ item, currency }: { item: MenuItem; currency: string }) 
       {/* Top row: name + veg indicator & add button */}
       <div className="flex justify-between items-start gap-3">
         <div className="flex-1 min-w-0">
-          <div className="flex items-start gap-2 mb-1">
-            <DietIndicator diet={item.diet} />
+          <div className="flex items-start gap-2.5 mb-1">
+            <div className="pt-0.5">
+              <DietIndicator diet={item.diet} />
+            </div>
             <h3
               className="text-foreground/90 line-clamp-2 min-h-[2.5em] leading-tight"
               style={typography.body2xlMid}
@@ -121,7 +130,7 @@ function MenuItemCard({ item, currency }: { item: MenuItem; currency: string }) 
           </div>
           {item.description ? (
             <p
-              className="text-muted-foreground/70 mt-1 line-clamp-2"
+              className="text-muted-foreground/70 mt-1 whitespace-pre-wrap break-words"
               style={{ ...typography.bodyMd2, lineHeight: 1.5 }}
             >
               {item.description}
@@ -133,7 +142,10 @@ function MenuItemCard({ item, currency }: { item: MenuItem; currency: string }) 
                 <button
                   key={opt}
                   type="button"
-                  onClick={() => setSelectedOption(opt)}
+                  onClick={() => {
+                    haptics.gestureLight();
+                    setSelectedOption(opt);
+                  }}
                   className={`px-2.5 py-1 rounded-full border text-[0.65rem] font-medium transition-colors active:scale-95 ${
                     selectedOption === opt
                       ? "bg-primary text-primary-foreground border-primary"
@@ -172,9 +184,10 @@ function MenuItemCard({ item, currency }: { item: MenuItem; currency: string }) 
                 exit={{ scale: 0.8, opacity: 0 }}
               >
                 <button
-                  onClick={() =>
-                    updateQuantity(item.id, selectedPortion, quantity - 1, selectedOption)
-                  }
+                  onClick={() => {
+                    updateQuantity(item.id, selectedPortion, quantity - 1, selectedOption);
+                    haptics.quantityChange();
+                  }}
                   className="w-9 h-9 flex items-center justify-center text-primary-foreground active:bg-primary/80 transition-colors"
                 >
                   <Minus className="w-4 h-4" />
@@ -188,9 +201,10 @@ function MenuItemCard({ item, currency }: { item: MenuItem; currency: string }) 
                   {quantity}
                 </span>
                 <button
-                  onClick={() =>
-                    updateQuantity(item.id, selectedPortion, quantity + 1, selectedOption)
-                  }
+                  onClick={() => {
+                    updateQuantity(item.id, selectedPortion, quantity + 1, selectedOption);
+                    haptics.quantityChange();
+                  }}
                   className="w-9 h-9 flex items-center justify-center text-primary-foreground active:bg-primary/80 transition-colors"
                 >
                   <Plus className="w-4 h-4" />
@@ -235,7 +249,7 @@ function MenuItemCard({ item, currency }: { item: MenuItem; currency: string }) 
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.2 }}
         >
-          {currency}{currentPrice}
+          {currency}{formatPrice(currentPrice)}
         </motion.p>
       </div>
     </motion.div>
@@ -243,18 +257,29 @@ function MenuItemCard({ item, currency }: { item: MenuItem; currency: string }) 
 }
 
 export function MenuScreen() {
-  const { categories, menuItems, branding, currency, loading } = useMenu();
+  const { categories, menuItems, branding, currency, loading, error, menuUpdatedAt } = useMenu();
   const [activeCategory, setActiveCategory] = useState(
     () => categories[0]?.id ?? ""
   );
   const tabsRef = useRef<HTMLDivElement>(null);
   const [entered, setEntered] = useState(false);
+  const [showMenuUpdated, setShowMenuUpdated] = useState(false);
+  const lastMenuUpdatedAtRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (categories.length && !categories.find((c) => c.id === activeCategory)) {
       setActiveCategory(categories[0]!.id);
     }
   }, [categories, activeCategory]);
+
+  useEffect(() => {
+    if (!menuUpdatedAt) return;
+    if (lastMenuUpdatedAtRef.current === menuUpdatedAt) return;
+    lastMenuUpdatedAtRef.current = menuUpdatedAt;
+    setShowMenuUpdated(true);
+    const t = setTimeout(() => setShowMenuUpdated(false), 2500);
+    return () => clearTimeout(t);
+  }, [menuUpdatedAt]);
 
   const filteredItems = menuItems.filter(
     (item) => item.category === activeCategory
@@ -283,11 +308,7 @@ export function MenuScreen() {
   }, [activeCategory]);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="animate-pulse text-muted-foreground">Loading menu...</div>
-      </div>
-    );
+    return <MenuScreenSkeleton />;
   }
   if (categories.length === 0) {
     return (
@@ -309,6 +330,13 @@ export function MenuScreen() {
             </h1>
           </motion.div>
         </ArchHeader>
+        {error ? (
+          <div className="px-4 sm:px-6 pt-2">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-sm">
+              {error}
+            </div>
+          </div>
+        ) : null}
         <div className="flex flex-col items-center justify-center px-6 py-16 text-center">
           <p className="text-muted-foreground/70" style={typography.bodyBase}>
             No categories available
@@ -363,6 +391,30 @@ export function MenuScreen() {
         </motion.div>
       </ArchHeader>
 
+      <AnimatePresence>
+        {showMenuUpdated && (
+          <motion.div
+            className="px-4 sm:px-6 -mt-2 pb-2"
+            initial={{ opacity: 0, y: -6 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -6 }}
+            transition={{ duration: 0.25 }}
+          >
+            <div className="w-full rounded-xl border border-primary/15 bg-primary/10 text-primary px-3 py-2 text-sm text-center">
+              Menu updated
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {error ? (
+        <div className="px-4 sm:px-6 pt-2">
+          <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-sm">
+            {error}
+          </div>
+        </div>
+      ) : null}
+
       {/* Category tabs - sticky */}
       <motion.div
         className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-primary/10"
@@ -379,7 +431,10 @@ export function MenuScreen() {
             <button
               key={cat.id}
               data-cat={cat.id}
-              onClick={() => setActiveCategory(cat.id)}
+              onClick={() => {
+                haptics.gestureLight();
+                setActiveCategory(cat.id);
+              }}
               className={`flex items-center gap-2 px-4 py-2.5 rounded-xl whitespace-nowrap transition-all duration-300 active:scale-95 ${
                 activeCategory === cat.id
                   ? "bg-primary text-primary-foreground shadow-sm"

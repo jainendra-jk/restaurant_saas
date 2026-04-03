@@ -3,19 +3,17 @@ import { ShoppingBag } from "lucide-react";
 import { useCart } from "./CartContext";
 import { useNavigate, useParams } from "react-router";
 import { useMenu } from "../../context/MenuContext";
+import { getOrderFlowBasePath } from "../../utils/orderRoutePaths";
 import * as typography from "../../theme/typography";
+import { formatPrice } from "../../utils/formatPrice";
+import { haptics } from "../../utils/haptics";
 
 export function BottomCartBar() {
   const { totalItems, totalPrice } = useCart();
   const { currency } = useMenu();
   const navigate = useNavigate();
-  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string }>();
-  const basePath =
-    params.slug && params.tableNum
-      ? `/r/${params.slug}/t/${params.tableNum}`
-      : params.restaurantSlug && params.tableNumber
-        ? `/order/${params.restaurantSlug}/table/${params.tableNumber}`
-        : "";
+  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string; qrToken?: string }>();
+  const basePath = getOrderFlowBasePath(params);
 
   return (
     <AnimatePresence>
@@ -32,7 +30,10 @@ export function BottomCartBar() {
             style={{ paddingBottom: "max(1.25rem, env(safe-area-inset-bottom))" }}
           >
             <button
-              onClick={() => navigate(basePath ? `${basePath}/cart` : "/cart")}
+              onClick={() => {
+                haptics.gestureMedium();
+                navigate(basePath ? `${basePath}/cart` : "/cart");
+              }}
               className="w-full bg-primary text-primary-foreground rounded-2xl px-5 py-4 flex items-center justify-between shadow-lg active:scale-[0.98] transition-transform"
               style={typography.fontBody}
             >
@@ -52,7 +53,7 @@ export function BottomCartBar() {
               </div>
               <div className="flex items-center gap-2">
                 <span style={{ ...typography.body2xl, fontWeight: 600 }}>
-                  {currency}{totalPrice}
+                  {currency}{formatPrice(totalPrice)}
                 </span>
                 <span
                   className="bg-white/20 rounded-lg px-3 py-1"

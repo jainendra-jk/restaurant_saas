@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ShoppingBag,
@@ -9,17 +9,19 @@ import {
   CreditCard,
   X,
 } from 'lucide-react';
-import { analyticsData } from '../data/mock-data';
+import { supabase } from '../../lib/supabase';
 import { useOrders } from '../context/OrdersContext';
 import { useMenuConfig } from '../context/MenuConfigContext';
 import { usePayment, type PaymentDetails } from '../context/PaymentContext';
 import { useRestaurantProfile } from '../context/RestaurantProfileContext';
-import { useShopStatus } from '../context/ShopStatusContext';
+import { useAuth } from '../context/AuthContext';
+import { fetchAnalyticsSnapshot, type AnalyticsSnapshot } from '../utils/analytics';
 import { sortByPlacedAt, formatTime24ToAmPm } from '../utils/helpers';
 import { StatCard } from '../components/ui/StatCard';
 import { DashboardOrderSection } from '../components/DashboardOrderSection';
 import { ShopClosedState } from '../components/ShopClosed';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
+import { AdminDashboardSkeleton } from '../components/AppSkeletons';
 
 /** Returns the specific reason payment is not valid for opening the shop (for modal message). */
 function getPaymentRequiredReason(
@@ -50,45 +52,17 @@ function setHasSeenPaymentPrompt(): void {
   }
 }
 
-const stats = [
-  {
-    label: 'Total Orders Today',
-    value: analyticsData.totalOrdersToday,
-    icon: ShoppingBag,
-    color: 'bg-primary/10 text-primary',
-    change: '+12%',
-  },
-  {
-    label: 'Revenue Today',
-    value: '',
-    icon: IndianRupee,
-    color: 'bg-status-served-light text-status-served',
-    change: '+8%',
-    revenue: true,
-  },
-  {
-    label: 'Most Ordered',
-    value: analyticsData.mostOrderedDish,
-    icon: ChefHat,
-    color: 'bg-[var(--stat-popular-light)] text-[var(--stat-popular)]',
-    change: '23 orders',
-  },
-  {
-    label: 'Peak Hours',
-    value: analyticsData.peakHours,
-    icon: Clock,
-    color: 'bg-[var(--stat-peak-light)] text-[var(--stat-peak)]',
-    change: 'Lunch rush',
-  },
-];
-
 export function Dashboard() {
   const navigate = useNavigate();
-  const { orders } = useOrders();
+  const { orders, initialLoading: ordersInitialLoading } = useOrders();
   const { branding } = useMenuConfig();
+  const { restaurant } = useAuth();
   const { paymentMode, hasSavedPaymentDetails, isPaymentConfigured, paymentDetails } = usePayment();
-  const { profile: restaurantProfile } = useRestaurantProfile();
-  const { effectiveIsShopActive, setShopActive } = useShopStatus();
+  const { profile: restaurantProfile, saveProfile } = useRestaurantProfile();
+  const [shopToggleBusy, setShopToggleBusy] = useState(false);
+  const [analytics, setAnalytics] = useState<AnalyticsSnapshot | null>(null);
+  const refreshTimerRef = useRef<number | null>(null);
+  const subRef = useRef<ReturnType<NonNullable<typeof supabase>['channel']> | null>(null);
 
   const closingTime = restaurantProfile?.closingTime ?? '23:00';
   const openingTime = restaurantProfile?.openingTime ?? '11:00';
@@ -115,14 +89,31 @@ export function Dashboard() {
     paymentMode === 'pay_at_table' ||
     isPaymentConfigured;
 
+  const persistedIsShopOpen = restaurantProfile?.isOpen ?? false;
+
+  const handlePersistShopStatus = useCallback(
+    async (nextIsOpen: boolean) => {
+      if (!restaurantProfile || shopToggleBusy) return;
+      try {
+        setShopToggleBusy(true);
+        await saveProfile({ ...restaurantProfile, isOpen: nextIsOpen });
+      } catch (error) {
+        console.error('Failed to update shop status', error);
+      } finally {
+        setShopToggleBusy(false);
+      }
+    },
+    [restaurantProfile, saveProfile, shopToggleBusy]
+  );
+
   /** Same logic as toggle turn-on: validate payment, show modal if invalid, else set shop active. */
   const handleOpenShop = useCallback(() => {
     if (!canTurnShopOn) {
       setShowPaymentRequiredModal(true);
       return;
     }
-    setShopActive(true);
-  }, [canTurnShopOn, setShopActive]);
+    void handlePersistShopStatus(true);
+  }, [canTurnShopOn, handlePersistShopStatus]);
 
   const handleGoToPaymentSettings = useCallback(() => {
     setShowPaymentRequiredModal(false);
@@ -131,6 +122,117 @@ export function Dashboard() {
 
   const showPaymentBanner =
     paymentMode !== 'pay_at_table' && !hasSavedPaymentDetails && showPaymentPrompt;
+
+  useEffect(() => {
+    if (!supabase || !restaurant?.id) {
+      setAnalytics(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    const refresh = async () => {
+      try {
+        const next = await fetchAnalyticsSnapshot(supabase, restaurant.id);
+        if (!cancelled) {
+          setAnalytics(next);
+        }
+      } catch {
+        // Keep previous snapshot on transient failures.
+      }
+    };
+
+    const scheduleRefresh = (delayMs: number) => {
+      if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
+      refreshTimerRef.current = window.setTimeout(() => {
+        void refresh();
+      }, delayMs);
+    };
+
+    void refresh();
+
+    if (subRef.current) {
+      subRef.current.unsubscribe();
+      subRef.current = null;
+    }
+    subRef.current = supabase
+      .channel(`dashboard-analytics-${restaurant.id}`)
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'orders' },
+        (payload) => {
+          const rid = (payload.new as { restaurant_id?: string } | null)?.restaurant_id;
+          if (rid && rid !== restaurant.id) return;
+          scheduleRefresh(350);
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'orders' },
+        (payload) => {
+          const newRow = (payload.new as { restaurant_id?: string } | null) ?? null;
+          const oldRow = (payload.old as { restaurant_id?: string } | null) ?? null;
+          const rid = newRow?.restaurant_id ?? oldRow?.restaurant_id;
+          if (rid && rid !== restaurant.id) return;
+          scheduleRefresh(650);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      cancelled = true;
+      if (refreshTimerRef.current) {
+        window.clearTimeout(refreshTimerRef.current);
+        refreshTimerRef.current = null;
+      }
+      if (subRef.current) {
+        subRef.current.unsubscribe();
+        subRef.current = null;
+      }
+    };
+  }, [restaurant?.id]);
+
+  const statSnapshot = analytics ?? {
+    totalOrdersToday: 0,
+    revenueToday: 0,
+    mostOrderedDish: '-',
+    peakHours: '-',
+  };
+
+  const stats = useMemo(
+    () => [
+      {
+        label: 'Total Orders Today',
+        value: String(statSnapshot.totalOrdersToday),
+        icon: ShoppingBag,
+        color: 'bg-primary/10 text-primary',
+      },
+      {
+        label: 'Revenue Today',
+        value: `${branding.currency}${statSnapshot.revenueToday.toLocaleString()}`,
+        icon: IndianRupee,
+        color: 'bg-status-served-light text-status-served',
+      },
+      {
+        label: 'Most Ordered',
+        value: statSnapshot.mostOrderedDish,
+        icon: ChefHat,
+        color: 'bg-[var(--stat-popular-light)] text-[var(--stat-popular)]',
+      },
+      {
+        label: 'Peak Hours',
+        value: statSnapshot.peakHours,
+        icon: Clock,
+        color: 'bg-[var(--stat-peak-light)] text-[var(--stat-peak)]',
+      },
+    ],
+    [statSnapshot.totalOrdersToday, statSnapshot.revenueToday, statSnapshot.mostOrderedDish, statSnapshot.peakHours, branding.currency]
+  );
+
+  const showInitialSkeleton = ordersInitialLoading || (!!restaurant?.id && analytics === null);
+  if (showInitialSkeleton) {
+    return <AdminDashboardSkeleton />;
+  }
 
   return (
     <div className="space-y-6">
@@ -166,7 +268,7 @@ export function Dashboard() {
         </div>
       )}
 
-      {!effectiveIsShopActive ? (
+      {!persistedIsShopOpen ? (
         <ShopClosedState
           restaurantName={branding.restaurantName}
           onOpenShop={handleOpenShop}
@@ -188,20 +290,22 @@ export function Dashboard() {
               <button
                 type="button"
                 onClick={() => {
-                  if (!effectiveIsShopActive && !canTurnShopOn) {
+                  if (!persistedIsShopOpen && !canTurnShopOn) {
                     setShowPaymentRequiredModal(true);
                     return;
                   }
-                  setShopActive(!effectiveIsShopActive);
+                  void handlePersistShopStatus(!persistedIsShopOpen);
                 }}
+                disabled={shopToggleBusy}
                 className={`relative w-11 h-6 rounded-full transition-colors duration-300 cursor-pointer shrink-0 ${
-                  effectiveIsShopActive ? 'bg-table-available' : 'bg-gray-300'
-                }`}
-                aria-label={effectiveIsShopActive ? 'Close shop' : 'Open shop'}
+                  persistedIsShopOpen ? 'bg-table-available' : 'bg-gray-300'
+                } ${shopToggleBusy ? 'opacity-60 cursor-not-allowed' : ''}
+              `}
+                aria-label={persistedIsShopOpen ? 'Close shop' : 'Open shop'}
               >
                 <span
                   className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ${
-                    effectiveIsShopActive ? 'translate-x-5' : 'translate-x-0'
+                    persistedIsShopOpen ? 'translate-x-5' : 'translate-x-0'
                   }`}
                 />
               </button>
@@ -214,7 +318,7 @@ export function Dashboard() {
               <StatCard
                 key={stat.label}
                 {...stat}
-                value={('revenue' in stat && stat.revenue) ? `${branding.currency}${analyticsData.revenueToday.toLocaleString()}` : stat.value}
+                value={stat.value}
               />
             ))}
           </div>

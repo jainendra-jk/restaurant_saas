@@ -3,6 +3,22 @@ import { useState, useEffect, memo } from 'react';
 import { useDrag } from 'react-dnd';
 import { getEmptyImage } from 'react-dnd-html5-backend';
 import type { MenuItem } from '../data/mock-data';
+import type { DietType } from '../types/menu-config';
+
+function cardDietRing(diet: DietType): { border: string; fill: string } {
+  switch (diet) {
+    case 'veg':
+      return { border: 'border-menu-veg', fill: 'bg-menu-veg' };
+    case 'egg':
+      return { border: 'border-amber-500', fill: 'bg-amber-500' };
+    case 'nonveg':
+      return { border: 'border-menu-nonveg', fill: 'bg-menu-nonveg' };
+    case 'seafood':
+      return { border: 'border-rose-600', fill: 'bg-rose-600' };
+    default:
+      return { border: 'border-gray-300', fill: 'bg-gray-300' };
+  }
+}
 import { useMenuConfig } from '../context/MenuConfigContext';
 import { MenuItemModal } from './MenuItemModal';
 
@@ -21,6 +37,7 @@ interface MenuItemCardProps {
 export const MenuItemCard = memo(function MenuItemCard({ item, categories, activeCategory, onToggleAvailability, onDelete, onRemoveFromCategory, onEdit }: MenuItemCardProps) {
   const { branding } = useMenuConfig();
   const [showEditModal, setShowEditModal] = useState(false);
+  const dietRing = cardDietRing(item.diet ?? 'veg');
 
   const [{ isDragging }, dragRef, previewRef] = useDrag(() => ({
     type: MENU_ITEM_DRAG_TYPE,
@@ -55,15 +72,9 @@ export const MenuItemCard = memo(function MenuItemCard({ item, categories, activ
           <div className="flex items-center gap-2 min-w-0">
             {/* Veg / Non-veg indicator */}
             <span
-              className={`flex-shrink-0 w-[18px] h-[18px] rounded border-[1.5px] grid place-items-center ${
-                item.isVeg ? 'border-menu-veg' : 'border-menu-nonveg'
-              }`}
+              className={`flex-shrink-0 w-[18px] h-[18px] rounded border-[1.5px] grid place-items-center ${dietRing.border}`}
             >
-              <span
-                className={`w-[9px] h-[9px] rounded-full ${
-                  item.isVeg ? 'bg-menu-veg' : 'bg-menu-nonveg'
-                }`}
-              />
+              <span className={`w-[9px] h-[9px] rounded-full ${dietRing.fill}`} />
             </span>
             <h4 className="text-gray-900 truncate">{item.name}</h4>
           </div>

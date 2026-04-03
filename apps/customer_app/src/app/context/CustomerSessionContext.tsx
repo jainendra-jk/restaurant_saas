@@ -9,62 +9,155 @@ import {
 import { useParams, useSearchParams } from 'react-router';
 import { supabase } from '../../lib/supabase';
 
+export type TableServiceStatus = 'active' | 'inactive';
+
 export interface CustomerSession {
   slug: string | null;
+  qrToken: string | null;
   tableNum: number | null;
   tableId: string | null;
+  /** Set when a table row was returned from Supabase; null if missing or not resolved yet. */
+  tableStatus: TableServiceStatus | null;
+  /** Restaurant-level ordering switch. false means store is closed for QR ordering. */
+  restaurantOpen: boolean;
   ready: boolean;
 }
 
 const CustomerSessionContext = createContext<CustomerSession | null>(null);
 
 export function CustomerSessionProvider({ children }: { children: ReactNode }) {
-  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string }>();
+  const params = useParams<{
+    slug?: string;
+    tableNum?: string;
+    restaurantSlug?: string;
+    tableNumber?: string;
+    qrToken?: string;
+  }>();
   const [searchParams] = useSearchParams();
   const [session, setSession] = useState<CustomerSession>({
     slug: null,
+    qrToken: null,
     tableNum: null,
     tableId: null,
+    tableStatus: null,
+    restaurantOpen: true,
     ready: false,
   });
 
   useEffect(() => {
     const slug = params.restaurantSlug ?? params.slug ?? searchParams.get('r');
+    const qrToken = params.qrToken ?? searchParams.get('q');
     const tableParam = params.tableNumber ?? params.tableNum ?? searchParams.get('t');
     const tableNum = tableParam ? parseInt(tableParam, 10) : null;
     const validNum = tableNum != null && !isNaN(tableNum) && tableNum > 0;
 
-    if (!slug || !validNum || !supabase) {
-      setSession({ slug: slug || null, tableNum: validNum ? tableNum : null, tableId: null, ready: true });
+    if (!slug || (!qrToken && !validNum) || !supabase) {
+      setSession({
+        slug: slug || null,
+        qrToken: qrToken || null,
+        tableNum: validNum ? tableNum : null,
+        tableId: null,
+        tableStatus: null,
+        restaurantOpen: true,
+        ready: true,
+      });
       return;
     }
 
     let cancelled = false;
-    (async () => {
-      const { data: rest } = await supabase.from('restaurants').select('id').eq('slug', slug).maybeSingle();
+    let channel: ReturnType<NonNullable<typeof supabase>['channel']> | null = null;
+    const load = async () => {
+      const { data: rest } = await supabase
+        .from('restaurants')
+        .select('id, is_open')
+        .eq('slug', slug)
+        .maybeSingle();
       if (cancelled || !rest) {
-        setSession({ slug, tableNum, tableId: null, ready: true });
+        setSession({
+          slug,
+          qrToken: qrToken || null,
+          tableNum,
+          tableId: null,
+          tableStatus: null,
+          restaurantOpen: true,
+          ready: true,
+        });
         return;
       }
-      const { data: tbl } = await supabase
+      const tableQuery = supabase
         .from('tables')
-        .select('id')
-        .eq('restaurant_id', rest.id)
-        .eq('number', tableNum)
-        .maybeSingle();
+        .select('id, status, number, qr_token')
+        .eq('restaurant_id', rest.id);
+      const { data: tbl } = await (qrToken
+        ? tableQuery.eq('qr_token', qrToken).maybeSingle()
+        : tableQuery.eq('number', tableNum!).maybeSingle());
+      const status =
+        tbl?.status === 'active' || tbl?.status === 'inactive' ? tbl.status : null;
       setSession({
         slug,
-        tableNum,
+        qrToken: (tbl?.qr_token as string | undefined) ?? qrToken ?? null,
+        tableNum: typeof tbl?.number === 'number' ? tbl.number : tableNum,
         tableId: tbl?.id ?? null,
+        tableStatus: status,
+        restaurantOpen: rest.is_open !== false,
         ready: true,
       });
-    })();
-    return () => { cancelled = true; };
-  }, [params.restaurantSlug, params.tableNumber, params.slug, params.tableNum, searchParams]);
+      if (!channel) {
+        const tableFilter = tbl?.id ? `id=eq.${tbl.id}` : `restaurant_id=eq.${rest.id}`;
+        channel = supabase
+          .channel(`customer-session-${rest.id}-${tbl?.id ?? 'na'}`)
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'restaurants',
+              filter: `id=eq.${rest.id}`,
+            },
+            () => {
+              void load();
+            }
+          )
+          .on(
+            'postgres_changes',
+            {
+              event: '*',
+              schema: 'public',
+              table: 'tables',
+              filter: tableFilter,
+            },
+            () => {
+              void load();
+            }
+          )
+          .subscribe();
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+      if (channel) void supabase.removeChannel(channel);
+    };
+  }, [
+    params.restaurantSlug,
+    params.tableNumber,
+    params.slug,
+    params.tableNum,
+    params.qrToken,
+    searchParams,
+  ]);
 
   const value = useMemo(
     () => session,
-    [session.slug, session.tableNum, session.tableId, session.ready]
+    [
+      session.slug,
+      session.qrToken,
+      session.tableNum,
+      session.tableId,
+      session.tableStatus,
+      session.restaurantOpen,
+      session.ready,
+    ]
   );
 
   return (
@@ -76,5 +169,18 @@ export function CustomerSessionProvider({ children }: { children: ReactNode }) {
 
 export function useCustomerSession(): CustomerSession {
   const ctx = useContext(CustomerSessionContext);
-  return ctx ?? { slug: null, tableNum: null, tableId: null, ready: true };
+  return ctx ?? {
+    slug: null,
+    qrToken: null,
+    tableNum: null,
+    tableId: null,
+    tableStatus: null,
+    restaurantOpen: true,
+    ready: true,
+  };
+}
+
+/** Ordering (menu/cart/checkout) is allowed only when the table row exists and is active in Supabase. */
+export function isTableOrderingAvailable(s: CustomerSession): boolean {
+  return Boolean(s.restaurantOpen && s.tableId && s.tableStatus === 'active');
 }

@@ -6,26 +6,33 @@ import { BotanicalDecor } from "../shared/ArchFrame";
 import { useMenu } from "../../context/MenuContext";
 import { DietIndicator } from "../shared/DietIndicator";
 import { ScreenHeader } from "../shared/ScreenHeader";
+import { getOrderFlowBasePath } from "../../utils/orderRoutePaths";
 import { PORTION_LABELS } from "../../constants/portions";
+import { computeTaxes } from "../../utils/tax";
 import * as typography from "../../theme/typography";
+import { formatPrice } from "../../utils/formatPrice";
+import { haptics } from "../../utils/haptics";
+import { CartScreenSkeleton } from "../shared/CustomerSkeletons";
 export function CartScreen() {
   const { items, updateQuantity, removeItem, totalPrice, totalItems } = useCart();
-  const { currency } = useMenu();
+  const { currency, taxRules, loading } = useMenu();
   const navigate = useNavigate();
-  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string }>();
-  const basePath =
-    params.slug && params.tableNum
-      ? `/r/${params.slug}/t/${params.tableNum}`
-      : params.restaurantSlug && params.tableNumber
-        ? `/order/${params.restaurantSlug}/table/${params.tableNumber}`
-        : "";
+  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string; qrToken?: string }>();
+  const basePath = getOrderFlowBasePath(params);
+
+  if (loading) {
+    return <CartScreenSkeleton />;
+  }
 
   if (items.length === 0) {
     return (
       <div className="min-h-screen bg-background flex flex-col">
         <div className="flex items-center px-4 sm:px-6" style={{ paddingTop: "max(3rem, env(safe-area-inset-top))", paddingBottom: "1rem" }}>
           <button
-            onClick={() => navigate(basePath ? `${basePath}/menu` : "/menu")}
+            onClick={() => {
+              haptics.gestureMedium();
+              navigate(basePath ? `${basePath}/menu` : "/menu");
+            }}
             className="w-10 h-10 rounded-xl bg-card border border-primary/10 flex items-center justify-center active:scale-95 transition-transform"
           >
             <ArrowLeft className="w-5 h-5 text-foreground/60" />
@@ -46,7 +53,10 @@ export function CartScreen() {
             Explore our menu and add items
           </p>
           <button
-            onClick={() => navigate(basePath ? `${basePath}/menu` : "/menu")}
+            onClick={() => {
+              haptics.gestureMedium();
+              navigate(basePath ? `${basePath}/menu` : "/menu");
+            }}
             className="mt-6 px-6 py-3 bg-primary text-primary-foreground rounded-xl active:scale-95 transition-transform"
             style={typography.bodyLgMid}
           >
@@ -57,7 +67,8 @@ export function CartScreen() {
     );
   }
 
-  const taxes = Math.round(totalPrice * 0.05);
+  const taxLines = computeTaxes(totalPrice, taxRules);
+  const taxes = taxLines.reduce((sum, t) => sum + t.amount, 0);
   const grandTotal = totalPrice + taxes;
 
   return (
@@ -97,8 +108,10 @@ export function CartScreen() {
               >
                 <div className="flex justify-between items-start">
                   <div className="flex-1 min-w-0">
-                    <div className="flex items-start gap-2">
-                      <DietIndicator diet={cartItem.item.diet} />
+                    <div className="flex items-start gap-2.5">
+                      <div className="pt-0.5">
+                        <DietIndicator diet={cartItem.item.diet} />
+                      </div>
                       <h3
                         className="text-foreground/85 line-clamp-2 min-h-[2.25em] leading-tight break-words"
                         style={typography.bodyXlMid}
@@ -118,23 +131,29 @@ export function CartScreen() {
                         className="text-muted-foreground/50"
                         style={typography.bodyMd}
                       >
-                        {currency}{unitPrice} each
+                        {currency}{formatPrice(unitPrice)} each
                       </span>
                     </div>
                     <p
                       className="text-foreground/70 mt-1.5"
                       style={typography.bodyLgMid}
                     >
-                      {currency}{unitPrice * cartItem.quantity}
+                      {currency}{formatPrice(unitPrice * cartItem.quantity)}
                     </p>
                   </div>
 
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-1 bg-primary/10 rounded-xl">
                       <button
-                        onClick={() =>
-                          updateQuantity(cartItem.item.id, cartItem.portion, cartItem.quantity - 1, cartItem.selectedOption)
-                        }
+                        onClick={() => {
+                          updateQuantity(
+                            cartItem.item.id,
+                            cartItem.portion,
+                            cartItem.quantity - 1,
+                            cartItem.selectedOption
+                          );
+                          haptics.quantityChange();
+                        }}
                         className="w-8 h-8 flex items-center justify-center text-primary active:scale-90 transition-transform"
                       >
                         <Minus className="w-3.5 h-3.5" />
@@ -146,9 +165,15 @@ export function CartScreen() {
                         {cartItem.quantity}
                       </span>
                       <button
-                        onClick={() =>
-                          updateQuantity(cartItem.item.id, cartItem.portion, cartItem.quantity + 1, cartItem.selectedOption)
-                        }
+                        onClick={() => {
+                          updateQuantity(
+                            cartItem.item.id,
+                            cartItem.portion,
+                            cartItem.quantity + 1,
+                            cartItem.selectedOption
+                          );
+                          haptics.quantityChange();
+                        }}
                         className="w-8 h-8 flex items-center justify-center text-primary active:scale-90 transition-transform"
                       >
                         <Plus className="w-3.5 h-3.5" />
@@ -156,7 +181,10 @@ export function CartScreen() {
                     </div>
 
                     <button
-                      onClick={() => removeItem(cartItem.item.id, cartItem.portion, cartItem.selectedOption)}
+                      onClick={() => {
+                        haptics.destructive();
+                        removeItem(cartItem.item.id, cartItem.portion, cartItem.selectedOption);
+                      }}
                       className="w-8 h-8 flex items-center justify-center text-destructive/50 active:scale-90 transition-transform"
                     >
                       <Trash2 className="w-4 h-4" />
@@ -189,23 +217,25 @@ export function CartScreen() {
               className="text-foreground/80"
               style={typography.bodyBaseMid}
             >
-              {currency}{totalPrice}
+              {currency}{formatPrice(totalPrice)}
             </span>
           </div>
-          <div className="flex justify-between">
-            <span
-              className="text-foreground/60"
-              style={typography.bodyBase}
-            >
-              GST (5%)
-            </span>
-            <span
-              className="text-foreground/80"
-              style={typography.bodyBaseMid}
-            >
-              {currency}{taxes}
-            </span>
-          </div>
+          {taxLines.map((line) => (
+            <div className="flex justify-between" key={line.name}>
+              <span
+                className="text-foreground/60"
+                style={typography.bodyBase}
+              >
+                {line.name} ({line.percent}%)
+              </span>
+              <span
+                className="text-foreground/80"
+                style={typography.bodyBaseMid}
+              >
+                {currency}{formatPrice(line.amount)}
+              </span>
+            </div>
+          ))}
           <div className="border-t border-primary/10 pt-3 flex justify-between">
             <span
               className="text-foreground/80"
@@ -217,7 +247,7 @@ export function CartScreen() {
               className="text-foreground/90"
               style={typography.titleSmBoldLarge}
             >
-              {currency}{grandTotal}
+              {currency}{formatPrice(grandTotal)}
             </span>
           </div>
         </div>
@@ -226,7 +256,10 @@ export function CartScreen() {
       {/* Checkout Button */}
       <div className="px-4 sm:px-6" style={{ paddingBottom: "max(2rem, env(safe-area-inset-bottom))" }}>
         <button
-          onClick={() => navigate(basePath ? `${basePath}/checkout` : "/checkout")}
+          onClick={() => {
+            haptics.gestureMedium();
+            navigate(basePath ? `${basePath}/checkout` : "/checkout");
+          }}
           className="w-full bg-primary text-primary-foreground rounded-2xl py-4 active:scale-[0.98] transition-transform shadow-md"
           style={typography.bodyXlMid}
         >

@@ -1,5 +1,6 @@
 import { ArrowLeft } from "lucide-react";
 import * as typography from "../../theme/typography";
+import { haptics } from "../../utils/haptics";
 
 interface ScreenHeaderProps {
   onBack: () => void;
@@ -18,7 +19,10 @@ export function ScreenHeader({ onBack, title, subtitle }: ScreenHeaderProps) {
       style={{ paddingTop: "max(3rem, env(safe-area-inset-top))" }}
     >
       <button
-        onClick={onBack}
+        onClick={() => {
+          haptics.gestureMedium();
+          onBack();
+        }}
         className="w-10 h-10 rounded-xl bg-card border border-primary/10 flex items-center justify-center active:scale-95 transition-transform"
       >
         <ArrowLeft className="w-5 h-5 text-foreground/60" />

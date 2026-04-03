@@ -39,6 +39,11 @@ export interface MenuConfigItem {
   description: string;
   options: string[];
   variants: MenuConfigItemVariant[];
+  /**
+   * Whether the item should be visible/available to customers.
+   * Admin UI toggles this; defaults to true when missing.
+   */
+  isAvailable?: boolean;
 }
 
 export interface MenuConfigCategory {

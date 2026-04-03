@@ -1,7 +1,6 @@
-import { Plus, Trash2, Pencil, FileUp, Loader2 } from 'lucide-react';
-import { useState, useCallback, memo, useEffect, useMemo, useRef } from 'react';
+import { Plus, Trash2, Pencil, Loader2, Save } from 'lucide-react';
+import { useState, useCallback, memo, useEffect, useMemo } from 'react';
 import { toast } from 'sonner';
-import { extractMenuFromPdf } from '@restaurant-saas/api-client';
 import { DndProvider, useDrop } from 'react-dnd';
 import { HTML5Backend } from 'react-dnd-html5-backend';
 import { type MenuItem } from '../data/mock-data';
@@ -15,6 +14,26 @@ import { InputModal } from '../components/ui/InputModal';
 import { EmptyState } from '../components/ui/EmptyState';
 import { DangerFAB } from '../components/ui/DangerFAB';
 import { SearchInput } from '../components/ui/SearchInput';
+import type { MenuConfig, MenuConfigItemVariant } from '../types/menu-config';
+import { AdminMenuSkeleton } from '../components/AppSkeletons';
+
+function slugifySegment(s: string): string {
+  let x = s
+    .trim()
+    .toLowerCase()
+    .replace(/[^\w\s-]/g, '')
+    .replace(/[\s_]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return x || 'item';
+}
+
+function getPersistentItemId(item: MenuItem): string {
+  const stable = (item.persistentId ?? '').trim();
+  if (stable) return stable;
+  // Backward compatibility for any local item lacking persistentId.
+  return slugifySegment(item.id);
+}
 
 interface DroppableCategoryTabProps {
   category: string;
@@ -73,21 +92,45 @@ const DroppableCategoryTab = memo(function DroppableCategoryTab({ category, isAc
 });
 
 export function MenuManagement() {
-  const { menuItems: configItems, categories: configCategories, loading, applyExtractedMenu } = useMenuConfig();
-  const { accessToken, restaurant } = useAuth();
-  const pdfInputRef = useRef<HTMLInputElement>(null);
-  const [pdfBusy, setPdfBusy] = useState(false);
+  const {
+    config,
+    configVersion,
+    menuItems: configItems,
+    categories: configCategories,
+    loading,
+    error,
+    saveMenuToDatabase,
+  } = useMenuConfig();
+  const { restaurant } = useAuth();
   const [items, setItems] = useState<MenuItem[]>([]);
   const [activeCategory, setActiveCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [categories, setCategories] = useState<string[]>([]);
+  // Used to disable the Save button until there are actual local changes.
+  const [initialItems, setInitialItems] = useState<MenuItem[]>([]);
+  const [initialCategories, setInitialCategories] = useState<string[]>([]);
+  const [baselineReady, setBaselineReady] = useState(false);
+  const [savingMenu, setSavingMenu] = useState(false);
+
+  const initialSnapshot = useMemo(
+    () => JSON.stringify({ items: initialItems, categories: initialCategories }),
+    [initialItems, initialCategories]
+  );
+  const currentSnapshot = useMemo(() => JSON.stringify({ items, categories }), [items, categories]);
+  const isDirty = baselineReady && initialSnapshot !== currentSnapshot;
+  const saveEnabled = !!restaurant?.id && baselineReady && isDirty && !loading && !savingMenu;
 
   useEffect(() => {
-    if (!loading) {
-      setItems(configItems);
-      setCategories(configCategories);
+    if (loading) return;
+    if (baselineReady && isDirty) {
+      return;
     }
-  }, [loading, configItems, configCategories]);
+    setItems(configItems);
+    setCategories(configCategories);
+    setInitialItems(configItems);
+    setInitialCategories(configCategories);
+    setBaselineReady(true);
+  }, [loading, configVersion, configItems, configCategories, baselineReady, isDirty]);
   const [showAddCategory, setShowAddCategory] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [deleteCategoryTarget, setDeleteCategoryTarget] = useState<string | null>(null);
@@ -146,7 +189,13 @@ export function MenuManagement() {
   };
 
   const handleAddItem = (newItem: MenuItem) => {
-    setItems((prev) => [...prev, newItem]);
+    setItems((prev) => [
+      ...prev,
+      {
+        ...newItem,
+        persistentId: (newItem.persistentId ?? '').trim() || slugifySegment(newItem.id),
+      },
+    ]);
     setShowAddItemModal(false);
   };
 
@@ -173,13 +222,15 @@ export function MenuManagement() {
     );
   }, []);
 
+  const newItemSeed = `item-${Date.now()}`;
   const emptyItem: MenuItem = {
-    id: `item-${Date.now()}`,
+    id: newItemSeed,
+    persistentId: newItemSeed,
     name: '',
     price: 0,
     categories: activeCategory !== 'All' ? [activeCategory] : categories.length > 0 ? [categories[0]] : [],
     image: '',
-    isVeg: true,
+    diet: 'veg',
     isAvailable: true,
     description: '',
     sizes: [],
@@ -219,34 +270,83 @@ export function MenuManagement() {
     ? (categoryCounts.get(deleteCategoryTarget) ?? 0)
     : 0;
 
-  const apiBaseConfigured = Boolean(import.meta.env.VITE_API_BASE_URL?.trim());
-  const canImportPdf = apiBaseConfigured && !!accessToken && !!restaurant?.id;
+  if (loading && !baselineReady) {
+    return <AdminMenuSkeleton />;
+  }
 
-  const handlePickPdf = () => {
-    pdfInputRef.current?.click();
-  };
-
-  const onPdfSelected = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = '';
-    if (!file) return;
-    if (!canImportPdf || !accessToken || !restaurant?.id) {
-      toast.error('Set VITE_API_BASE_URL, start apps/api, and sign in.');
+  const handleSaveMenuToDatabase = async () => {
+    const categorySlugCounts = new Map<string, number>();
+    for (const catName of categories) {
+      const slug = slugifySegment(catName);
+      categorySlugCounts.set(slug, (categorySlugCounts.get(slug) ?? 0) + 1);
+    }
+    const duplicateCategorySlug = Array.from(categorySlugCounts.entries()).find(([, count]) => count > 1)?.[0];
+    if (duplicateCategorySlug) {
+      toast.error(`Duplicate category detected after normalization: "${duplicateCategorySlug}". Please rename one of the conflicting categories before saving.`);
       return;
     }
-    if (!file.name.toLowerCase().endsWith('.pdf')) {
-      toast.error('Please choose a PDF file.');
-      return;
-    }
-    setPdfBusy(true);
+
+    setSavingMenu(true);
     try {
-      const data = await extractMenuFromPdf(file, accessToken, restaurant.id, restaurant.name);
-      applyExtractedMenu(data);
-      toast.success('Menu imported from PDF — review before saving to Supabase.');
-    } catch (err) {
-      toast.error(err instanceof Error ? err.message : 'Import failed');
+      const defaultCategoryId = categories[0];
+      const derivedCategories = categories.map((catName) => {
+        const itemsForThisCategory =
+          items
+            .filter((it) => it.categories.includes(catName) || (it.categories.length === 0 && catName === defaultCategoryId));
+
+        return {
+          id: catName,
+          name: catName,
+          items: itemsForThisCategory.map((it) => {
+            const variantsSource =
+              it.sizes && it.sizes.length > 0 ? it.sizes : [{ label: 'FULL', price: it.price }];
+
+            const normalizeVariantType = (label: string): MenuConfigItemVariant['type'] => {
+              const s = (label ?? '').trim().toLowerCase();
+              if (s === 'qtr' || s === 'quarter' || s.includes('qtr') || s.includes('quarter')) return 'qtr';
+              if (s === 'half' || s.includes('half')) return 'half';
+              return 'full';
+            };
+
+            const variants: MenuConfigItemVariant[] = variantsSource.map((v) => ({
+              type: normalizeVariantType(v.label),
+              price: Number(v.price) || 0,
+            }));
+
+            return {
+              id: getPersistentItemId(it),
+              name: it.name,
+              diet: it.diet,
+              description: it.description ?? '',
+              options: it.flavours ?? [],
+              variants,
+              isAvailable: it.isAvailable,
+            };
+          }),
+        };
+      });
+
+      const derivedConfig: MenuConfig = {
+        palette: config.palette,
+        branding: config.branding,
+        currency: config.currency,
+        categories: derivedCategories,
+      };
+
+      const { error } = await saveMenuToDatabase(derivedConfig);
+      if (error) {
+        toast.error(error);
+      } else {
+        toast.success('Menu saved.', { closeButton: false });
+        // Use canonical context as baseline after save to prevent local/remote drift.
+        setItems(configItems);
+        setCategories(configCategories);
+        setInitialItems(configItems);
+        setInitialCategories(configCategories);
+        setBaselineReady(true);
+      }
     } finally {
-      setPdfBusy(false);
+      setSavingMenu(false);
     }
   };
 
@@ -271,28 +371,16 @@ export function MenuManagement() {
             />
           </div>
 
-          <input
-            ref={pdfInputRef}
-            type="file"
-            accept="application/pdf,.pdf"
-            className="hidden"
-            onChange={onPdfSelected}
-          />
           <button
             type="button"
-            disabled={!canImportPdf || pdfBusy || loading}
-            title={
-              !apiBaseConfigured
-                ? 'Set VITE_API_BASE_URL and run pnpm dev:api'
-                : !accessToken || !restaurant?.id
-                  ? 'Sign in to import'
-                  : 'Extract menu from PDF (Gemini)'
-            }
-            onClick={handlePickPdf}
-            className="shrink-0 flex items-center gap-2 px-3 py-2 bg-white text-gray-700 border border-gray-200 rounded-xl text-xs hover:bg-gray-50 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+            disabled={!saveEnabled}
+            onClick={handleSaveMenuToDatabase}
+            className={`shrink-0 flex items-center gap-2 px-3 py-2 bg-primary text-white border border-primary rounded-xl text-xs hover:brightness-90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+              saveEnabled ? 'ring-2 ring-primary/40 shadow-[0_0_15px_rgba(249,115,22,0.45)]' : ''
+            }`}
           >
-            {pdfBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileUp className="w-4 h-4" />}
-            Import PDF
+            {savingMenu ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+            Save
           </button>
           <button
             onClick={() => setShowAddItemModal(true)}
@@ -302,6 +390,11 @@ export function MenuManagement() {
             Add Item
           </button>
         </div>
+        {error ? (
+          <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-amber-900 text-sm">
+            {error}
+          </div>
+        ) : null}
       </div>
 
       {/* Content area */}

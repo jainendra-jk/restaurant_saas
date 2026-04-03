@@ -8,28 +8,33 @@ import { BotanicalDecor } from "../shared/ArchFrame";
 import { ScreenHeader } from "../shared/ScreenHeader";
 import { useMenu } from "../../context/MenuContext";
 import { useCustomerSession } from "../../context/CustomerSessionContext";
+import { getOrderFlowBasePath } from "../../utils/orderRoutePaths";
 import type { OrderSummary } from "../../utils/receiptPdf";
 import { getPortionShort } from "../../constants/portions";
+import { computeTaxes } from "../../utils/tax";
 import * as typography from "../../theme/typography";
+import { formatPrice } from "../../utils/formatPrice";
+import { haptics } from "../../utils/haptics";
+import { CheckoutScreenSkeleton } from "../shared/CustomerSkeletons";
 export function CheckoutScreen() {
   const { items, totalPrice, clearCart } = useCart();
   const navigate = useNavigate();
-  const { branding, currency, restaurantId } = useMenu();
+  const { branding, currency, restaurantId, taxRules, loading } = useMenu();
   const { tableNum, tableId } = useCustomerSession();
-  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string }>();
-  const basePath =
-    params.slug && params.tableNum
-      ? `/r/${params.slug}/t/${params.tableNum}`
-      : params.restaurantSlug && params.tableNumber
-        ? `/order/${params.restaurantSlug}/table/${params.tableNumber}`
-        : "";
+  const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string; qrToken?: string }>();
+  const basePath = getOrderFlowBasePath(params);
   const [name, setName] = useState("");
   const [instructions, setInstructions] = useState("");
   const [isPlacing, setIsPlacing] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
 
+  if (loading) {
+    return <CheckoutScreenSkeleton />;
+  }
+
   const tableNo = tableNum ?? 7;
-  const taxes = Math.round(totalPrice * 0.05);
+  const taxLines = computeTaxes(totalPrice, taxRules);
+  const taxes = taxLines.reduce((sum, t) => sum + t.amount, 0);
   const grandTotal = totalPrice + taxes;
 
   useEffect(() => {
@@ -39,6 +44,7 @@ export function CheckoutScreen() {
   }, [items.length, isPlacing, navigate, basePath]);
 
   const handlePlaceOrder = async () => {
+    haptics.gestureMedium();
     setSubmitError(null);
     setIsPlacing(true);
     const orderNumber = `${branding.orderNumberPrefix}${Math.floor(1000 + Math.random() * 9000)}`;
@@ -62,6 +68,7 @@ export function CheckoutScreen() {
       }),
       subTotal: totalPrice,
       tax: taxes,
+      taxLines,
       total: grandTotal,
       tableNo: String(tableNo),
     };
@@ -93,6 +100,7 @@ export function CheckoutScreen() {
       total: orderSummary.total,
     };
     const finishSuccess = () => {
+      haptics.orderPlaced();
       setTimeout(() => {
         clearCart();
         navigate(basePath ? `${basePath}/confirmation` : "/confirmation", {
@@ -220,7 +228,7 @@ export function CheckoutScreen() {
                 className="text-foreground/70 shrink-0"
                 style={typography.bodyBaseMid}
               >
-                {currency}{getPortionPrice(ci.item, ci.portion) * ci.quantity}
+                {currency}{formatPrice(getPortionPrice(ci.item, ci.portion) * ci.quantity)}
               </span>
             </div>
           ))}
@@ -229,13 +237,13 @@ export function CheckoutScreen() {
               className="text-foreground/80"
               style={typography.bodyLgSemi}
             >
-              Total (incl. GST)
+              Total
             </span>
             <span
               className="text-foreground/90"
               style={typography.titleSmBold}
             >
-              {currency}{grandTotal}
+              {currency}{formatPrice(grandTotal)}
             </span>
           </div>
         </motion.div>
@@ -352,7 +360,7 @@ export function CheckoutScreen() {
                 Placing Order...
               </span>
             ) : (
-              `Place Order • ${currency}${grandTotal}`
+              `Place Order • ${currency}${formatPrice(grandTotal)}`
             )}
           </button>
         </motion.div>

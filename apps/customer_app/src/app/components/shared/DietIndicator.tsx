@@ -17,9 +17,10 @@ export function DietIndicator({ diet }: { diet: DietType }) {
   const { border, fill } = getDietColors(diet);
   return (
     <div
-      className={`w-4 h-4 border rounded-sm flex items-center justify-center ${border}`}
+      className={`w-5 h-5 min-w-5 min-h-5 shrink-0 rounded-[4px] border-[1.5px] flex items-center justify-center ${border}`}
+      aria-hidden="true"
     >
-      <div className={`w-2 h-2 rounded-full ${fill}`} />
+      <div className={`w-2.5 h-2.5 rounded-full ${fill}`} />
     </div>
   );
 }
