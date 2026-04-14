@@ -1,0 +1,12 @@
+# Supabase local / deploy config. Edge Functions use secrets set via `supabase secrets set`.
+# Set `project_id` in this file when using Supabase CLI linked to your project.
+
+[functions.create-billing-checkout]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false
+
+# Optional / future SaaS billing; not used by create-billing-checkout until Razorpay is re-enabled.
+[functions.razorpay-webhook]
+verify_jwt = false

@@ -9,6 +9,7 @@ import { useAuth } from '../context/AuthContext';
 import { StatusBadge } from './StatusBadge';
 import { downloadCustomerBill } from '../bill/customerBill';
 import { downloadKitchenReceipt } from '../bill.config/kitchenReceipt';
+import { buildRestaurantBillAddressFromRow } from '../utils/billAddress';
 
 const statusBorderColors: Record<OrderStatus, string> = {
   new: 'border-l-status-new',
@@ -40,13 +41,44 @@ function cleanText(value: string | null | undefined): string | undefined {
   return trimmed ? trimmed : undefined;
 }
 
+function buildDbLocationLine(restaurant: {
+  city: string | null;
+  state: string | null;
+  pincode: string | null;
+} | null): string | undefined {
+  if (!restaurant) return undefined;
+  const city = cleanText(restaurant.city);
+  const state = cleanText(restaurant.state);
+  const pincode = cleanText(restaurant.pincode);
+  const cityState = [city, state].filter(Boolean).join(', ');
+  const line = [cityState, pincode].filter(Boolean).join(' - ');
+  return line || undefined;
+}
+
 function getBillBranding(
-  branding: { restaurantName: string; currency: string; address?: string; contact?: string; fssaiNumber?: string },
-  profile: { address: string; phone?: string; fssaiNumber: string; taxRules: { name: string; percent: number }[] } | null,
+  branding: {
+    restaurantName: string;
+    currency: string;
+    address?: string;
+    contact?: string;
+    fssaiNumber?: string;
+    gstNumber?: string;
+  },
+  profile: {
+    address: string;
+    phone?: string;
+    fssaiNumber: string;
+    gstNumber: string;
+    taxRules: { name: string; percent: number }[];
+  } | null,
   restaurant: {
     addressLine1: string | null;
+    city: string | null;
+    state: string | null;
+    pincode: string | null;
     phone: string | null;
     fssaiNumber: string | null;
+    gstNumber: string | null;
     branding?: Record<string, unknown>;
   } | null
 ) {
@@ -64,10 +96,19 @@ function getBillBranding(
   const restaurantBrandingFssai = cleanText(
     typeof restaurantBranding.fssaiNumber === 'string' ? restaurantBranding.fssaiNumber : undefined
   );
+  const restaurantBrandingGst = cleanText(
+    typeof restaurantBranding.gstNumber === 'string' ? restaurantBranding.gstNumber : undefined
+  );
 
   const profileAddress = cleanText(profile?.address);
-  const restaurantAddress = cleanText(restaurant?.addressLine1);
+  const restaurantComposedAddress = restaurant
+    ? buildRestaurantBillAddressFromRow(restaurant)
+    : undefined;
+  const dbLocationLine = buildDbLocationLine(restaurant);
   const menuBrandingAddress = cleanText(branding.address);
+  const mergedProfileAddress = profileAddress
+    ? [profileAddress, dbLocationLine].filter(Boolean).join('\n')
+    : undefined;
 
   const profilePhone = cleanText(profile?.phone);
   const restaurantPhone = cleanText(restaurant?.phone);
@@ -77,13 +118,21 @@ function getBillBranding(
   const restaurantFssai = cleanText(restaurant?.fssaiNumber);
   const menuBrandingFssai = cleanText(branding.fssaiNumber);
 
+  const profileGst = cleanText(profile?.gstNumber);
+  const restaurantGst = cleanText(restaurant?.gstNumber);
+  const menuBrandingGst = cleanText(branding.gstNumber);
+
   return {
     restaurantName: branding.restaurantName,
     currency: branding.currency,
     address:
-      profileAddress || restaurantAddress || restaurantBrandingAddress || menuBrandingAddress,
+      mergedProfileAddress ||
+      restaurantComposedAddress ||
+      restaurantBrandingAddress ||
+      menuBrandingAddress,
     contact:
       profilePhone || restaurantPhone || restaurantBrandingContact || menuBrandingContact,
+    gstNumber: profileGst || restaurantGst || restaurantBrandingGst || menuBrandingGst,
     fssaiNumber:
       profileFssai || restaurantFssai || restaurantBrandingFssai || menuBrandingFssai,
     taxRules: profile?.taxRules ?? [],

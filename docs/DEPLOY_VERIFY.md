@@ -14,10 +14,42 @@ Manual checklist for validating the restaurant SaaS deployment.
 
 ## Post-deploy (production)
 
-1. **Supabase Auth**: Add production URLs to redirect allowlist
+1. **Auth / OAuth / marketing SPA** (required for Google sign-in and checkout; see below)
 2. **RLS**: Create second restaurant + staff, confirm staff A cannot see restaurant B data
 3. **QR link**: Generate QR from admin, scan on phone, confirm customer app loads
 4. **Order flow**: Place order from customer app, confirm it appears in admin Live Orders
+
+### Auth / OAuth / marketing site (`apps/Website Design final`)
+
+Without these steps, Google OAuth can fail or the browser can show **404** on `/checkout` or `/dashboard` after login.
+
+**Google Cloud Console** (OAuth 2.0 Client ID used in Supabase):
+
+- **Authorized redirect URIs**: add exactly  
+  `https://<YOUR_PROJECT_REF>.supabase.co/auth/v1/callback`  
+  (not your marketing domain — Google returns to Supabase first.)
+- **Authorized JavaScript origins**: include `https://<YOUR_PROJECT_REF>.supabase.co`, your production marketing origin (e.g. `https://www.example.com`), and `http://localhost:5173` for local dev if needed.
+- Paste **Client ID** and **Client secret** into **Supabase → Authentication → Providers → Google**.
+
+**Supabase Dashboard → Authentication → URL Configuration**:
+
+- **Site URL**: canonical marketing origin (same host users type in the browser; should match **`VITE_WEBSITE_ORIGIN`** in `.env`).
+- **Redirect URLs**: allow every URL the app uses as `redirectTo`, for example:
+  - `https://www.example.com/`
+  - `https://www.example.com/checkout`
+  - `https://www.example.com/checkout?plan=starter`
+  - `https://www.example.com/checkout?plan=professional`
+  - `https://www.example.com/dashboard`
+  - Same paths on `http://localhost:5173` for local testing  
+  Wildcards such as `https://www.example.com/**` are supported on current Supabase projects; see [Redirect URLs](https://supabase.com/docs/guides/auth/redirect-urls).
+
+**Static hosting (SPA fallback)** so deep links and OAuth returns load the app:
+
+- The marketing app ships **`vercel.json`** (rewrite all paths to `index.html`) and **`public/_redirects`** for Netlify (`/*` → `index.html` with 200). Deploy `dist/` with those files at the site root.
+- **Cloudflare Pages**: add a rule or `_routes.json` / “SPA” behavior so unknown paths serve `index.html`.
+- **S3 + CloudFront** or **nginx**: default object / `try_files` to `index.html` for non-file routes.
+
+**Verify**: open production `https://your-domain/checkout?plan=starter` in a new tab (hard refresh). You should get **200** and the checkout UI, not a JSON or HTML 404 from the CDN.
 
 ## Two-tenant RLS check
 

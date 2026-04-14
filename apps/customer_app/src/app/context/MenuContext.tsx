@@ -99,6 +99,8 @@ interface MenuState {
   billingAddressLines: string[];
   /** Phone for receipt header (from restaurants table). */
   billingPhone: string;
+  billingGstNumber: string;
+  billingFssaiNumber: string;
   loading: boolean;
   error: string | null;
   restaurantId: string | null;
@@ -158,6 +160,8 @@ function getStaticMenuState(): MenuState {
     taxRules: [],
     billingAddressLines: [],
     billingPhone: "",
+    billingGstNumber: "",
+    billingFssaiNumber: "",
     loading: false,
     error: null,
     restaurantId: null,
@@ -176,6 +180,8 @@ type RestRow = {
   state?: string | null;
   pincode?: string | null;
   phone?: string | null;
+  gst_number?: string | null;
+  fssai_number?: string | null;
 };
 
 function getTenantUnavailableState(message: string): MenuState {
@@ -187,6 +193,8 @@ function getTenantUnavailableState(message: string): MenuState {
     taxRules: [],
     billingAddressLines: [],
     billingPhone: "",
+    billingGstNumber: "",
+    billingFssaiNumber: "",
     loading: false,
     error: message,
     restaurantId: null,
@@ -204,6 +212,8 @@ function getTenantLoadingState(): MenuState {
     taxRules: [],
     billingAddressLines: [],
     billingPhone: "",
+    billingGstNumber: "",
+    billingFssaiNumber: "",
     loading: true,
     error: null,
     restaurantId: null,
@@ -254,6 +264,19 @@ async function fetchMenuStateForRestaurant(rest: RestRow, supa: NonNullable<type
         .map((r) => ({ name: r.name.trim(), percent: r.percent }))
     : [];
 
+  const billingGstNumber =
+    cleanLine(rest.gst_number) ??
+    cleanLine(
+      typeof brandingObj.gstNumber === "string" ? brandingObj.gstNumber : undefined
+    ) ??
+    "";
+  const billingFssaiNumber =
+    cleanLine(rest.fssai_number) ??
+    cleanLine(
+      typeof brandingObj.fssaiNumber === "string" ? brandingObj.fssaiNumber : undefined
+    ) ??
+    "";
+
   if (!cats?.length) {
     const branding = (rest.branding as Partial<Branding>) ?? {};
     const pal = (rest.palette as ConfigPalette) ?? {};
@@ -268,6 +291,8 @@ async function fetchMenuStateForRestaurant(rest: RestRow, supa: NonNullable<type
       taxRules,
       billingAddressLines,
       billingPhone,
+      billingGstNumber,
+      billingFssaiNumber,
       loading: false,
       error: null,
       restaurantId: rest.id,
@@ -343,6 +368,8 @@ async function fetchMenuStateForRestaurant(rest: RestRow, supa: NonNullable<type
     taxRules,
     billingAddressLines,
     billingPhone,
+    billingGstNumber,
+    billingFssaiNumber,
     loading: false,
     error: null,
     restaurantId: rest.id,
@@ -378,7 +405,9 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     const refetchByRestaurantId = async (restaurantId: string) => {
       const { data: rest } = await supabase
         .from("restaurants")
-        .select("id, name, branding, palette, currency, address_line1, city, state, pincode, phone")
+        .select(
+          "id, name, branding, palette, currency, address_line1, city, state, pincode, phone, gst_number, fssai_number"
+        )
         .eq("id", restaurantId)
         .maybeSingle();
       if (cancelled || !rest) return;
@@ -404,7 +433,9 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     (async () => {
       const { data: rest, error: restErr } = await supabase
         .from("restaurants")
-        .select("id, name, branding, palette, currency, address_line1, city, state, pincode, phone")
+        .select(
+          "id, name, branding, palette, currency, address_line1, city, state, pincode, phone, gst_number, fssai_number"
+        )
         .eq("slug", slug)
         .maybeSingle();
 

@@ -1,0 +1,14 @@
+@import './fonts.css';
+@import './tailwind.css';
+@import './theme.css';
+
+/* Equal-height slick carousel slides */
+.slick-track {
+  display: flex !important;
+}
+.slick-slide {
+  height: auto !important;
+}
+.slick-slide > div {
+  height: 100%;
+}

@@ -15,6 +15,7 @@ interface MenuUploadProps {
   needsSessionForImport?: boolean;
   /** API URL missing — import will not run until configured. */
   apiNotConfigured?: boolean;
+  submitLabel?: string;
 }
 
 export function MenuUpload({
@@ -26,6 +27,7 @@ export function MenuUpload({
   importError = null,
   needsSessionForImport = false,
   apiNotConfigured = false,
+  submitLabel = "Continue",
 }: MenuUploadProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [uploadError, setUploadError] = useState("");
@@ -78,8 +80,14 @@ export function MenuUpload({
         <div>
           <label className="text-gray-800">Upload Your Menu</label>
           <p className="text-sm text-gray-400 mt-1">
-            PDF required. We import your menu during final setup after you confirm details.
+            PDF required. Uploading here will directly import your menu and finish onboarding.
           </p>
+          <ul className="mt-3 space-y-1.5 text-xs text-gray-500 list-disc pl-4">
+            <li>Please ensure menu pricing includes a clear currency (for example: $, INR, EUR).</li>
+            <li>Maximum file size is 10 MB per PDF.</li>
+            <li>You can upload up to 3 PDF files during onboarding.</li>
+            <li>If you face any issue, contact <span className="text-gray-600">support@ratolabs.com</span>.</li>
+          </ul>
         </div>
 
         {!menuPdfFile ? (
@@ -175,7 +183,7 @@ export function MenuUpload({
                   <span>{importError}</span>
                 </div>
                 <p className="text-xs text-gray-500 text-center">
-                  Try another PDF or check your connection, then open Review again to finish setup.
+                  Try another PDF or check your connection, then retry here to finish setup.
                 </p>
               </div>
             )}
@@ -186,7 +194,7 @@ export function MenuUpload({
               className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white transition-all duration-200 cursor-pointer"
               style={{ backgroundColor: "#f97316" }}
             >
-              Continue
+              {submitLabel}
               <ChevronRight className="w-4 h-4" />
             </button>
           </motion.div>

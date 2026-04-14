@@ -533,7 +533,11 @@ export function MenuConfigProvider({ children }: { children: ReactNode }) {
         { event: '*', schema: 'public', table: 'restaurants', filter: `id=eq.${restaurant.id}` },
         scheduleRefresh
       )
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'menu_items' }, scheduleRefresh)
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'menu_items', filter: `restaurant_id=eq.${restaurant.id}` },
+        scheduleRefresh
+      )
       .subscribe();
 
     return () => {

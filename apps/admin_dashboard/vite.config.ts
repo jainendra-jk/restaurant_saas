@@ -19,6 +19,10 @@ export default defineConfig({
         __dirname,
         '../../packages/api-client/src/index.ts'
       ),
+      '@restaurant-saas/supabase-auth': path.resolve(
+        __dirname,
+        '../../packages/supabase-auth/src/index.ts'
+      ),
     },
   },
 

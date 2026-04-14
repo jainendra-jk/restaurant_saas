@@ -11,6 +11,8 @@ interface DashboardSetupProps {
   direction: number;
   /** True while account + restaurant are being created (last step). */
   disableContinue?: boolean;
+  /** When set, table count is fixed by plan (read-only). */
+  tablesFixedCount?: number | null;
 }
 
 function PasswordStrength({ password }: { password: string }) {
@@ -104,6 +106,7 @@ export function DashboardSetup({
   onNext,
   direction,
   disableContinue = false,
+  tablesFixedCount = null,
 }: DashboardSetupProps) {
   const [showPassword, setShowPassword] = useState(false);
   const [isFocused, setIsFocused] = useState(false);
@@ -148,8 +151,11 @@ export function DashboardSetup({
 
   const configs = {
     tables: {
-      label: "Number of Tables",
-      description: "How many dine-in tables does your restaurant have?",
+      label: tablesFixedCount != null ? "Tables (your plan)" : "Number of Tables",
+      description:
+        tablesFixedCount != null
+          ? `Your subscription includes ${tablesFixedCount} tables.`
+          : "How many dine-in tables does your restaurant have?",
       placeholder: "e.g. 12",
     },
     password: {
@@ -195,6 +201,7 @@ export function DashboardSetup({
                 min="1"
                 max="999"
                 value={value}
+                readOnly={tablesFixedCount != null}
                 onChange={(e) => {
                   const val = e.target.value.replace(/[^0-9]/g, "");
                   if (val === "" || (parseInt(val) >= 0 && parseInt(val) <= 999)) {
@@ -205,7 +212,9 @@ export function DashboardSetup({
                 onFocus={() => setIsFocused(true)}
                 onBlur={() => setIsFocused(false)}
                 placeholder={config.placeholder}
-                className="w-full px-5 py-4 rounded-xl bg-gray-50/80 border border-gray-200 outline-none transition-all duration-300 pr-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                className={`w-full px-5 py-4 rounded-xl border border-gray-200 outline-none transition-all duration-300 pr-12 [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none ${
+                  tablesFixedCount != null ? "bg-gray-100/90 text-gray-600 cursor-not-allowed" : "bg-gray-50/80"
+                }`}
                 style={{ borderColor }}
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
@@ -285,9 +294,12 @@ export function DashboardSetup({
 
         <button
           onClick={handleNext}
-          disabled={!value.trim() || disableContinue}
+          disabled={(!value.trim() && tablesFixedCount == null) || disableContinue}
           className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-white transition-all duration-200 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-          style={{ backgroundColor: !value.trim() || disableContinue ? "#fdba74" : "#f97316" }}
+          style={{
+            backgroundColor:
+              (!value.trim() && tablesFixedCount == null) || disableContinue ? "#fdba74" : "#f97316",
+          }}
         >
           Continue
           <ChevronRight className="w-4 h-4" />

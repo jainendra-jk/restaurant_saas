@@ -136,7 +136,7 @@ export function HelpSupportSlider({ onClose }: HelpSupportSliderProps) {
           <Mail className="w-4 h-4 text-gray-400 flex-shrink-0" />
           <div>
             <p className="text-xs text-gray-700">Email Support</p>
-            <p className="text-[11px] text-primary mt-0.5">support@spicegarden.in</p>
+            <p className="text-[11px] text-primary mt-0.5">support@ratolabs.com</p>
           </div>
         </div>
         <div className="flex items-center gap-3 p-3 rounded-xl border border-gray-100 bg-gray-50">

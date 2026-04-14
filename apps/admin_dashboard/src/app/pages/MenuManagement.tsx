@@ -28,6 +28,18 @@ function slugifySegment(s: string): string {
   return x || 'item';
 }
 
+function normalizeCategoryName(value: string): string {
+  return value.trim().replace(/\s+/g, ' ');
+}
+
+function hasCategoryConflict(categories: string[], candidate: string, exclude?: string): boolean {
+  const normalizedSlug = slugifySegment(candidate);
+  return categories.some((existing) => {
+    if (exclude && existing === exclude) return false;
+    return slugifySegment(existing) === normalizedSlug;
+  });
+}
+
 function getPersistentItemId(item: MenuItem): string {
   const stable = (item.persistentId ?? '').trim();
   if (stable) return stable;
@@ -167,32 +179,40 @@ export function MenuManagement() {
 
   const handleRenameCategory = () => {
     if (!renamingCategory) return;
-    const trimmed = renameCategoryValue.trim();
-    if (!trimmed || trimmed === renamingCategory || categories.includes(trimmed)) {
+    const nextName = normalizeCategoryName(renameCategoryValue);
+    if (!nextName || nextName === renamingCategory) {
       setRenamingCategory(null);
       setRenameCategoryValue('');
       return;
     }
+    if (hasCategoryConflict(categories, nextName, renamingCategory)) {
+      toast.error('Another category with the same normalized name already exists.');
+      return;
+    }
     const oldName = renamingCategory;
-    setCategories((prev) => prev.map((c) => (c === oldName ? trimmed : c)));
+    setCategories((prev) => prev.map((c) => (c === oldName ? nextName : c)));
     setItems((prev) =>
       prev.map((item) => ({
         ...item,
-        categories: item.categories.map((c) => (c === oldName ? trimmed : c)),
+        categories: item.categories.map((c) => (c === oldName ? nextName : c)),
       }))
     );
     if (activeCategory === oldName) {
-      setActiveCategory(trimmed);
+      setActiveCategory(nextName);
     }
     setRenamingCategory(null);
     setRenameCategoryValue('');
   };
 
   const handleAddItem = (newItem: MenuItem) => {
+    const preferredCategory =
+      newItem.categories[0] ?? (activeCategory !== 'All' ? activeCategory : categories[0]);
+    const nextCategories = preferredCategory ? [preferredCategory] : [];
     setItems((prev) => [
       ...prev,
       {
         ...newItem,
+        categories: nextCategories,
         persistentId: (newItem.persistentId ?? '').trim() || slugifySegment(newItem.id),
       },
     ]);
@@ -258,10 +278,13 @@ export function MenuManagement() {
   }, [items, categories]);
 
   const handleAddCategory = () => {
-    const trimmed = newCategoryName.trim();
-    if (trimmed && !categories.includes(trimmed)) {
-      setCategories((prev) => [...prev, trimmed]);
+    const nextName = normalizeCategoryName(newCategoryName);
+    if (!nextName) return;
+    if (hasCategoryConflict(categories, nextName)) {
+      toast.error('A category with the same normalized name already exists.');
+      return;
     }
+    setCategories((prev) => [...prev, nextName]);
     setNewCategoryName('');
     setShowAddCategory(false);
   };
@@ -338,11 +361,9 @@ export function MenuManagement() {
         toast.error(error);
       } else {
         toast.success('Menu saved.', { closeButton: false });
-        // Use canonical context as baseline after save to prevent local/remote drift.
-        setItems(configItems);
-        setCategories(configCategories);
-        setInitialItems(configItems);
-        setInitialCategories(configCategories);
+        // Set local baseline from exactly what was saved to avoid stale-context flicker.
+        setInitialItems(items);
+        setInitialCategories(categories);
         setBaselineReady(true);
       }
     } finally {
@@ -507,8 +528,18 @@ export function MenuManagement() {
           onConfirm={handleRenameCategory}
           onCancel={() => { setRenamingCategory(null); setRenameCategoryValue(''); }}
           confirmLabel="Save Changes"
-          confirmDisabled={!renameCategoryValue.trim() || renameCategoryValue.trim() === renamingCategory || categories.includes(renameCategoryValue.trim())}
-          error={renameCategoryValue.trim() && renameCategoryValue.trim() !== renamingCategory && categories.includes(renameCategoryValue.trim()) ? "A category with this name already exists" : undefined}
+          confirmDisabled={
+            !normalizeCategoryName(renameCategoryValue) ||
+            normalizeCategoryName(renameCategoryValue) === renamingCategory ||
+            hasCategoryConflict(categories, normalizeCategoryName(renameCategoryValue), renamingCategory)
+          }
+          error={
+            normalizeCategoryName(renameCategoryValue) &&
+            normalizeCategoryName(renameCategoryValue) !== renamingCategory &&
+            hasCategoryConflict(categories, normalizeCategoryName(renameCategoryValue), renamingCategory)
+              ? 'A category with this normalized name already exists'
+              : undefined
+          }
         />
       )}
 
@@ -517,7 +548,7 @@ export function MenuManagement() {
         icon={<Trash2 className="w-5 h-5" />}
         onClick={() => setDeleteCategoryTarget(activeCategory)}
         title={`Delete category "${activeCategory}"`}
-        visible={activeCategory !== 'All' && filteredItems.length > 0}
+        visible={activeCategory !== 'All'}
       />
 
       {/* Delete Category Confirmation Modal */}

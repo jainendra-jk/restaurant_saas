@@ -80,6 +80,29 @@ function storageKeyForRestaurant(restaurantId: string): string {
   return `${STORAGE_KEY}:${restaurantId}`;
 }
 
+function hasNonToggleProfileChanges(prev: RestaurantProfile, next: RestaurantProfile): boolean {
+  return (
+    prev.name !== next.name ||
+    prev.ownerName !== next.ownerName ||
+    prev.phone !== next.phone ||
+    prev.altPhone !== next.altPhone ||
+    prev.email !== next.email ||
+    prev.address !== next.address ||
+    prev.city !== next.city ||
+    prev.state !== next.state ||
+    prev.pincode !== next.pincode ||
+    prev.gstNumber !== next.gstNumber ||
+    prev.fssaiNumber !== next.fssaiNumber ||
+    prev.cuisineType !== next.cuisineType ||
+    prev.openingTime !== next.openingTime ||
+    prev.closingTime !== next.closingTime ||
+    prev.seatingCapacity !== next.seatingCapacity ||
+    prev.avgCostForTwo !== next.avgCostForTwo ||
+    prev.description !== next.description ||
+    JSON.stringify(prev.taxRules) !== JSON.stringify(next.taxRules)
+  );
+}
+
 function loadFromStorage(storageKey: string, restaurantName: string): RestaurantProfile | null {
   try {
     const raw = localStorage.getItem(storageKey);
@@ -152,6 +175,8 @@ export function RestaurantProfileProvider({ children }: { children: ReactNode })
     // Use the local profile state first because auth context can lag until the next fetch.
     const prevIsOpen = profile?.isOpen ?? restaurant.isOpen;
     const nextIsOpen = p.isOpen;
+    const isToggleChange = prevIsOpen !== nextIsOpen;
+    const onlyToggleChanged = profile ? !hasNonToggleProfileChanges(profile, p) : false;
 
     const existingBranding = (restaurant.branding ?? {}) as Record<string, unknown>;
     const taxRules = p.taxRules
@@ -195,6 +220,19 @@ export function RestaurantProfileProvider({ children }: { children: ReactNode })
         .eq('id', restaurant.id)
         .throwOnError();
     };
+
+    // Fast strict path for dashboard toggle-only actions:
+    // keep backend-confirmed behavior but avoid redundant profile row rewrites.
+    if (isToggleChange && onlyToggleChanged) {
+      if (!nextIsOpen) {
+        await closeStoreAndDeactivateTables(supabase, restaurant.id);
+      } else {
+        await openStore(supabase, restaurant.id);
+      }
+      setProfile(p);
+      localStorage.setItem(storageKeyForRestaurant(restaurant.id), JSON.stringify(p));
+      return;
+    }
 
     // Only toggle tables when the "store open" state itself changes.
     if (prevIsOpen === nextIsOpen) {

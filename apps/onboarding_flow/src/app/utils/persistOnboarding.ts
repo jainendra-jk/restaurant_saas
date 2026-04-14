@@ -41,8 +41,16 @@ export interface PersistOnboardingResult {
   needsEmailConfirmation: boolean;
 }
 
+export interface PersistOnboardingOptions {
+  /** Use existing Supabase session instead of signUp (billing funnel). */
+  skipAuthSignup?: boolean;
+  /** Fixed table count from plan tier. */
+  tableCountOverride?: number;
+}
+
 export async function persistOnboardingToSupabase(
-  formData: OnboardingFormData
+  formData: OnboardingFormData,
+  options?: PersistOnboardingOptions
 ): Promise<PersistOnboardingResult> {
   if (!supabase) {
     return {
@@ -54,70 +62,112 @@ export async function persistOnboardingToSupabase(
   }
 
   const slug = slugify(formData.restaurantName) || 'restaurant-' + Date.now();
-  const tableCount = Math.min(50, Math.max(1, parseInt(formData.tables, 10) || 5));
+  const tableCount =
+    typeof options?.tableCountOverride === 'number' && options.tableCountOverride > 0
+      ? Math.min(50, Math.max(1, options.tableCountOverride))
+      : Math.min(50, Math.max(1, parseInt(formData.tables, 10) || 5));
   const customerAppOrigin = getCustomerAppOriginFromEnv();
 
-  const { data: authData, error: authErr } = await supabase.auth.signUp({
-    email: formData.email,
-    password: formData.password,
+  let accessToken: string | null;
+  let needsEmailConfirmation = false;
+  let shouldUpdatePasswordFromSession = false;
+  let effectiveEmail = formData.email.trim();
+
+  const { data: sessionData, error: sessionErr } = await supabase.auth.getSession();
+  const session = sessionData.session;
+  const hasSessionUser = Boolean(!sessionErr && session?.user);
+
+  if (options?.skipAuthSignup || hasSessionUser) {
+    if (!session?.user) {
+      return {
+        error: 'You must be signed in to complete onboarding.',
+        restaurantId: null,
+        accessToken: null,
+        needsEmailConfirmation: false,
+      };
+    }
+    const sessionEmail = session.user.email?.trim().toLowerCase() ?? '';
+    const formEmail = formData.email.trim().toLowerCase();
+    if (sessionEmail.length > 0 && formEmail.length > 0 && sessionEmail !== formEmail) {
+      return {
+        error: 'Email must match your signed-in account.',
+        restaurantId: null,
+        accessToken: null,
+        needsEmailConfirmation: false,
+      };
+    }
+    effectiveEmail = formData.email.trim() || session.user.email?.trim() || '';
+    accessToken = session.access_token ?? null;
+    needsEmailConfirmation = false;
+    shouldUpdatePasswordFromSession = Boolean(formData.password.trim());
+  } else {
+    const { data: authData, error: authErr } = await supabase.auth.signUp({
+      email: formData.email,
+      password: formData.password,
+    });
+    if (authErr) {
+      return {
+        error: authErr.message,
+        restaurantId: null,
+        accessToken: null,
+        needsEmailConfirmation: false,
+      };
+    }
+    const uid = authData.user?.id;
+    if (!uid) {
+      return {
+        error: 'Sign up failed',
+        restaurantId: null,
+        accessToken: null,
+        needsEmailConfirmation: false,
+      };
+    }
+    const session = authData.session;
+    accessToken = session?.access_token ?? null;
+    needsEmailConfirmation = !session;
+    if (!session) {
+      // Email confirmation is required — return success with needsEmailConfirmation: true
+      // so the caller can display an OTP step rather than blocking with a hard error.
+      return {
+        error: null,
+        restaurantId: null,
+        accessToken: null,
+        needsEmailConfirmation: true,
+      };
+    }
+  }
+
+  const { data: onboardingData, error: onboardingErr } = await supabase.rpc('complete_onboarding', {
+    p_restaurant_name: formData.restaurantName,
+    p_slug_base: slug,
+    p_customer_app_origin: customerAppOrigin,
+    p_owner_name: formData.ownerName.trim() || null,
+    p_phone: formData.phone.trim() || null,
+    p_email: effectiveEmail || null,
+    p_address_line1: formData.address.trim() || null,
+    p_city: formData.city.trim() || null,
+    p_state: formData.state.trim() || null,
+    p_pincode: formData.pincode.trim() || null,
+    p_gst_number: formData.gstNumber.trim() || null,
+    p_fssai_number: formData.fssaiNumber.trim() || null,
+    p_requested_tables: tableCount,
   });
-  if (authErr) {
+
+  if (onboardingErr) {
+    const msg = onboardingErr.message || 'Onboarding failed';
     return {
-      error: authErr.message,
-      restaurantId: null,
-      accessToken: null,
-      needsEmailConfirmation: false,
-    };
-  }
-  const userId = authData.user?.id;
-  if (!userId) {
-    return {
-      error: 'Sign up failed',
-      restaurantId: null,
-      accessToken: null,
-      needsEmailConfirmation: false,
-    };
-  }
-
-  const session = authData.session;
-  const accessToken = session?.access_token ?? null;
-  const needsEmailConfirmation = !session;
-
-  const branding: Record<string, string> = {
-    tagline: '',
-    welcomeMessage: 'Welcome back',
-    orderNumberPrefix: '#',
-  };
-
-  const { data: restaurant, error: restErr } = await supabase
-    .from('restaurants')
-    .insert({
-      slug,
-      name: formData.restaurantName,
-      customer_app_origin: customerAppOrigin,
-      branding,
-      owner_name: formData.ownerName.trim() || null,
-      phone: formData.phone.trim() || null,
-      email: formData.email.trim() || null,
-      address_line1: formData.address.trim() || null,
-      city: formData.city.trim() || null,
-      state: formData.state.trim() || null,
-      pincode: formData.pincode.trim() || null,
-      gst_number: formData.gstNumber.trim() || null,
-      fssai_number: formData.fssaiNumber.trim() || null,
-    })
-    .select('id')
-    .single();
-
-  if (restErr) {
-    return {
-      error: restErr.message,
+      error: msg,
       restaurantId: null,
       accessToken,
       needsEmailConfirmation,
     };
   }
-  if (!restaurant?.id) {
+
+  const restaurantId =
+    onboardingData && typeof onboardingData === 'object' && 'restaurant_id' in onboardingData
+      ? String((onboardingData as { restaurant_id?: unknown }).restaurant_id ?? '')
+      : '';
+  if (!restaurantId) {
     return {
       error: 'Failed to create restaurant',
       restaurantId: null,
@@ -126,39 +176,23 @@ export async function persistOnboardingToSupabase(
     };
   }
 
-  const { error: profileErr } = await supabase.from('staff_profiles').insert({
-    user_id: userId,
-    restaurant_id: restaurant.id,
-    role: 'owner',
-  });
-  if (profileErr) {
-    return {
-      error: profileErr.message,
-      restaurantId: restaurant.id,
-      accessToken,
-      needsEmailConfirmation,
-    };
-  }
-
-  const tables = Array.from({ length: tableCount }, (_, i) => ({
-    restaurant_id: restaurant.id,
-    number: i + 1,
-    status: 'inactive',
-    seats: i % 3 === 0 ? 6 : i % 3 === 1 ? 4 : 2,
-  }));
-  const { error: tablesErr } = await supabase.from('tables').insert(tables);
-  if (tablesErr) {
-    return {
-      error: tablesErr.message,
-      restaurantId: restaurant.id,
-      accessToken,
-      needsEmailConfirmation,
-    };
+  if (shouldUpdatePasswordFromSession) {
+    const { error: pwdErr } = await supabase.auth.updateUser({
+      password: formData.password,
+    });
+    if (pwdErr) {
+      return {
+        error: `Onboarding completed, but password was not saved: ${pwdErr.message}`,
+        restaurantId,
+        accessToken,
+        needsEmailConfirmation,
+      };
+    }
   }
 
   return {
     error: null,
-    restaurantId: restaurant.id,
+    restaurantId,
     accessToken,
     needsEmailConfirmation,
   };

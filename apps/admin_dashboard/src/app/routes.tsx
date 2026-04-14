@@ -8,11 +8,20 @@ import { MenuManagement } from './pages/MenuManagement';
 import { Analytics } from './pages/Analytics';
 import { SettingsPage } from './pages/SettingsPage';
 import { Login } from './pages/Login';
+import { Setup } from './pages/Setup';
 
 export const router = createBrowserRouter([
   {
     path: '/login',
     Component: Login,
+  },
+  {
+    path: '/setup',
+    element: (
+      <RequireAuth>
+        <Setup />
+      </RequireAuth>
+    ),
   },
   {
     path: '/',

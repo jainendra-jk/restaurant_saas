@@ -21,6 +21,7 @@ import {
   ensurePrimaryValid,
   getActiveGateways,
 } from '../context/PaymentContext';
+import { StripePoweredByBadge } from './StripePoweredByBadge';
 
 /** Input with optional copy button; same styling as FormField. */
 function FieldWithCopy({
@@ -366,8 +367,8 @@ export function PaymentsSlider({ onClose }: PaymentsSliderProps) {
           </div>
 
           {/* Stripe */}
-          <div className="bg-gray-50/50 rounded-xl p-4 mb-4 relative">
-            <div className="flex items-start justify-between mb-3">
+          <div className="bg-gray-50/50 rounded-xl p-4 pb-11 mb-4 relative">
+            <div className="flex items-start justify-between gap-2 mb-3">
               <SectionHeader label="Stripe" />
               <StatusBadge tone={details.stripe.connected ? 'active' : 'inactive'} label={details.stripe.connected ? 'Active' : 'Not Connected'} />
             </div>
@@ -416,6 +417,9 @@ export function PaymentsSlider({ onClose }: PaymentsSliderProps) {
               >
                 Disconnect
               </button>
+            </div>
+            <div className="absolute bottom-3 right-4">
+              <StripePoweredByBadge />
             </div>
           </div>
 

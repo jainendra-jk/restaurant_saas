@@ -7,6 +7,7 @@ This document describes the **end-to-end flow** of the monorepo: onboarding, adm
 | Component | Path | Purpose |
 |-----------|------|---------|
 | **Onboarding** | `apps/onboarding_flow` | Sign-up wizard: creates auth user, restaurant, staff link, tables; optional menu import + QR codes via API |
+| **Marketing site** | `apps/Website Design final` | Landing + **`/checkout`**: email/Google auth, then **Stripe** subscription checkout (Edge Function) |
 | **Admin dashboard** | `apps/admin_dashboard` | Staff login, manage menu/tables/orders/settings, generate or refresh QR codes via API |
 | **Customer app** | `apps/customer_app` | Public menu and ordering at URLs embedded in QR codes |
 | **Backend API** | `apps/api` (FastAPI) | Authenticated endpoints: menu PDF extraction, QR PNG generation (uses **service role** for Supabase reads) |
@@ -22,6 +23,7 @@ All three frontends that use Supabase must point at the **same project** (`VITE_
 - **`restaurants`** — one row per restaurant (slug, name, branding, `customer_app_origin`, …).
 - **`staff_profiles`** — links `user_id` (auth) → `restaurant_id` + role (e.g. owner). Admin loads “my restaurant” through this table.
 - **`tables`** — per-table rows (`number`, `restaurant_id`, optional `order_url`, `qr_png_base64`, …).
+- **`saas_entitlements`** — one row per **`auth.users`** who bought a SaaS plan (`plan_tier`, `max_tables`, `status`, Stripe ids; Razorpay columns reserved for a future integration). **RLS:** users can **read** their own row; **writes** only via Edge Functions (service role) and webhooks.
 - **Menu** — categories/items tied to `restaurant_id`.
 - **Orders** — created from the customer app; staff see them in admin when RLS allows.
 
@@ -33,17 +35,20 @@ Row Level Security (RLS) policies (see `supabase/migrations/20240321000001_rls_a
 
 ### User experience
 
+**A. Paid funnel (after Stripe checkout)** — user lands on onboarding with **`?plan=starter`** or **`?plan=professional`**. The app checks **session + `saas_entitlements`** (active/trialing, matching `plan_tier`); otherwise redirects to **`VITE_WEBSITE_ORIGIN/checkout?plan=...`**. Email is prefilled and locked; **table count is fixed** (20 for Starter, 50 for Professional); **dashboard password step is skipped** (account already exists). On confirm, **`persistOnboardingToSupabase`** uses **`skipAuthSignup: true`** and does **not** call `signUp` again.
+
+**B. Legacy / direct onboarding** — no `plan` query param: same steps as before.
+
 1. **Restaurant details** — name, owner, phone, **email** (used for Auth), address, GST/FSSAI, etc.
 2. **Menu upload** — optional PDF (used only if the API is available on confirm).
-3. **Dashboard setup** — table count, username (UX label; **sign-in uses email**), password, domain (customer app base URL for QR links).
+3. **Dashboard setup** — table count, password (legacy); customer app base URL comes from env (`VITE_CUSTOMER_APP_ORIGIN`).
 4. **Review** → **Confirm** — writes to Supabase and optionally calls the API.
 
 ### What happens on Confirm
 
 Implementation: `apps/onboarding_flow/src/app/utils/persistOnboarding.ts` and `OnboardingFlow.tsx`.
 
-1. **`supabase.auth.signUp({ email, password })`**  
-   Creates the user under **Authentication → Users** when successful.
+1. **Auth** — **Legacy:** **`supabase.auth.signUp({ email, password })`** creates the user. **Paid funnel:** existing session only; email must match the signed-in user.
 
 2. **Insert `restaurants`** — slug derived from name, branding JSON, `customer_app_origin` from the domain field.
 
@@ -62,7 +67,64 @@ Implementation: `apps/onboarding_flow/src/app/utils/persistOnboarding.ts` and `O
 
 ### Environment note (onboarding)
 
-Vite loads `.env` from the **app directory** unless `envDir` is set. The **admin** app is configured to load from the **monorepo root** (`apps/admin_dashboard/vite.config.ts`). If your only `.env` is at the repo root, **onboarding may not see `VITE_SUPABASE_*`** unless you duplicate env or align `envDir`. Without those variables, `signUp` never runs against your project → **empty Authentication → Users**.
+Onboarding **`vite.config.ts`** sets **`envDir`** to the **monorepo root** (same idea as admin). Use **`VITE_WEBSITE_ORIGIN`** so paid-funnel redirects target the deployed marketing app (e.g. `http://localhost:5173` in dev).
+
+---
+
+## 1b. Marketing checkout and SaaS billing
+
+SaaS subscription checkout is **Stripe-only** for now. The **`razorpay-webhook`** function remains in the repo for a possible future Razorpay path but is **not** used by **`create-billing-checkout`** or the marketing UI.
+
+### Email confirmation and 6-digit OTP
+
+When **Confirm email** is enabled in your Supabase project, new email-password signups require the user to verify inbox ownership before a session is issued. The checkout and legacy onboarding pages handle this with an **in-app 6-digit OTP step** (no redirect needed).
+
+**Supabase dashboard setup (one-time, per project):**
+
+1. **Authentication → Providers → Email** — keep email enabled; toggle **Confirm email** on for production; you may leave it off locally to skip OTP during development.
+2. **Authentication → Email Templates → Confirm signup** — change the body to send the OTP token as a plain code. Use the `{{ .Token }}` placeholder (or `{{ .OtpCode }}` depending on your Supabase version) in the email body so the user receives a 6-digit number.
+3. **Authentication → Settings → OTP Expiry** — recommended value: **600 seconds (10 minutes)** for the signup OTP.
+4. **Authentication → URL Configuration** — ensure your marketing site origin (e.g. `http://localhost:5173` locally, your deployed URL in prod) is in the **Redirect URLs** allow-list (already required for Google OAuth; harmless to add for consistency). Also add the **manual linking** return URL for the owner dashboard settings page: **`http://localhost:5173/dashboard/settings`** (dev) and **`https://<your-marketing-host>/dashboard/settings`** (production) so **`linkIdentity({ provider: 'google' })`** can redirect back after Google OAuth.
+
+### Forgot password (recovery OTP)
+
+The marketing login dialog (**`apps/Website Design final`**) and **admin login** (**`apps/admin_dashboard`**) use a shared flow: **send code** → **`verifyOtp` with `type: 'recovery'`** → **new password** (`@restaurant-saas/supabase-auth`). For users to see a **6-digit code** in email (not only a magic link), configure **Authentication → Email Templates → Reset password** so the template includes the OTP token placeholder (e.g. `{{ .Token }}` per current Supabase docs). **`resetPasswordForEmail`** still requires a valid **`redirectTo`** URL in allow-lists even when the UX is OTP-in-app.
+
+### Google identity linking (same email, one user)
+
+In **Supabase → Authentication**, enable **Allow manual linking** so the JS client can call **`supabase.auth.linkIdentity`**.
+
+- **Marketing app:** signed-in owners use **Dashboard → Settings** → **Connect Google** to attach Google to the **same** `auth.users` row as their email/password account (avoids duplicate users for the same inbox).
+- **Redirect URLs** must include **`/dashboard/settings`** as above.
+- **Restaurant admin login** (`apps/admin_dashboard`) is **email + password only** (no Google button); owners who linked Google can still use email/password there, or you can add Google to admin later if desired.
+
+**How the app handles it:**
+
+- `signUp({ email, password })` is called first. If Supabase returns `session: null` (email confirmation required), the UI switches to an OTP entry step **on the same page** — no page navigation.
+- On submit, the client calls `supabase.auth.verifyOtp({ email, token, type: 'signup' })`. Success yields a session; errors are shown inline.
+- A **Resend code** button (enabled after a 60-second cooldown) calls `supabase.auth.resend({ type: 'signup', email })`.
+- If `signUp` immediately returns a session (confirmations disabled in local/dev), the OTP step is skipped automatically.
+
+### Flow
+
+1. **Pricing** (`PricingSection`) — Starter/Professional link to **`/checkout?plan=...`**. Enterprise opens **Gmail compose** to `support@ratolabs.com`.
+2. **`/checkout`** — user signs up or signs in (**email/password** or **Google**). On signup with email confirmation enabled, an OTP entry step is shown inline. Configure **Google** and **redirect URLs** in Supabase (add your marketing site origin, e.g. `http://localhost:5173/checkout?plan=starter`, or the default Site URL + redirect allow list).
+3. **Pay** — browser calls **`supabase.functions.invoke('create-billing-checkout', { body: { plan } })`** (includes **`apikey`** + session JWT). The Edge Function returns **`{ url }`** → redirect to **Stripe Checkout** (subscription mode). Success redirects to **`{ONBOARDING}/?plan=...&billing=success`**.
+4. **Webhooks** — **`stripe-webhook`** verifies the signing secret and **upserts `saas_entitlements`**.
+
+### Edge Function secrets
+
+Set with Supabase CLI or Dashboard (not `VITE_`):
+
+- **`MARKETING_SITE_URL`**, **`ONBOARDING_SITE_URL`** — used for Stripe cancel/success URLs.
+- **Stripe:** `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_STARTER_MONTHLY`, `STRIPE_PRICE_PROFESSIONAL_MONTHLY`.
+- **`SUPABASE_SERVICE_ROLE_KEY`** (for DB writes from webhooks).
+
+Deploy: **`supabase functions deploy create-billing-checkout stripe-webhook`**. Register the Stripe webhook URL in the Stripe dashboard.
+
+### Future: Razorpay (optional)
+
+If you re-enable Razorpay later, restore checkout UI + **`create-billing-checkout`** branches, set Razorpay secrets, and deploy **`razorpay-webhook`**. See commented variables in **`.env.example`**.
 
 ---
 
@@ -72,7 +134,7 @@ Vite loads `.env` from the **app directory** unless `envDir` is set. The **admin
 
 `apps/admin_dashboard/src/app/routes.tsx`:
 
-- **`/login`** — email + password → `supabase.auth.signInWithPassword`.
+- **`/login`** — **email + password only** → `supabase.auth.signInWithPassword` (Google sign-in is not offered on this screen).
 - **`/`**, **`/orders`**, **`/tables`**, **`/menu`**, **`/analytics`**, **`/settings`** — wrapped in **`RequireAuth`** (redirect to login if no session).
 
 ### After login

@@ -23,6 +23,8 @@ export interface MenuConfigBranding {
   address?: string;
   /** Optional contact (phone/email) for customer bill PDF */
   contact?: string;
+  /** Optional GST registration number for customer bill PDF */
+  gstNumber?: string;
   /** Optional FSSAI licence number for customer bill PDF */
   fssaiNumber?: string;
 }

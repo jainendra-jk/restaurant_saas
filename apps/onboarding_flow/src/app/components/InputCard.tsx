@@ -14,6 +14,8 @@ interface InputCardProps {
   onNext: () => void;
   onSkip?: () => void;
   direction: number;
+  /** Prefilled account email (billing funnel) — user cannot edit. */
+  readOnly?: boolean;
 }
 
 export function InputCard({
@@ -27,6 +29,7 @@ export function InputCard({
   onNext,
   onSkip,
   direction,
+  readOnly = false,
 }: InputCardProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isFocused, setIsFocused] = useState(false);
@@ -116,12 +119,15 @@ export function InputCard({
               ref={inputRef}
               type={type}
               value={value}
+              readOnly={readOnly}
               onChange={(e) => onChange(e.target.value)}
               onKeyDown={handleKeyDown}
               onFocus={() => setIsFocused(true)}
               onBlur={() => setIsFocused(false)}
               placeholder={placeholder}
-              className="w-full px-5 py-4 rounded-xl bg-gray-50/80 border border-gray-200 outline-none transition-all duration-300 pr-12"
+              className={`w-full px-5 py-4 rounded-xl border border-gray-200 outline-none transition-all duration-300 pr-12 ${
+                readOnly ? "bg-gray-100/90 text-gray-600 cursor-not-allowed" : "bg-gray-50/80"
+              }`}
               style={{ borderColor }}
             />
             <AnimatePresence mode="wait">

@@ -16,7 +16,15 @@ export function ConfirmationScreen() {
   const location = useLocation();
   const params = useParams<{ slug?: string; tableNum?: string; restaurantSlug?: string; tableNumber?: string; qrToken?: string }>();
   const basePath = getOrderFlowBasePath(params);
-  const { branding, currency, billingAddressLines, billingPhone, loading } = useMenu();
+  const {
+    branding,
+    currency,
+    billingAddressLines,
+    billingPhone,
+    billingGstNumber,
+    billingFssaiNumber,
+    loading,
+  } = useMenu();
   const orderSummary = (location.state as { orderSummary?: OrderSummary } | null)?.orderSummary;
   const orderNumber = orderSummary?.orderNumber ?? `${branding.orderNumberPrefix}${Math.floor(1000 + Math.random() * 9000)}`;
   const tableNo = orderSummary?.tableNo ?? "7";
@@ -47,6 +55,8 @@ export function ConfirmationScreen() {
         ...billConfig,
         address: billingAddressLines.length ? billingAddressLines : billConfig.address,
         phone: billingPhone.trim() ? billingPhone.trim() : billConfig.phone,
+        gstNumber: billingGstNumber.trim() || billConfig.gstNumber || "",
+        fssaiNumber: billingFssaiNumber.trim() || billConfig.fssaiNumber || "",
       };
       await generateReceiptPdf(orderSummary, resolvedBillConfig, branding.restaurantName, currency);
     } finally {

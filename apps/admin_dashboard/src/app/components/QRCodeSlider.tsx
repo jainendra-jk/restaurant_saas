@@ -1,10 +1,13 @@
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Download, Copy, QrCode, Check } from 'lucide-react';
 import { SliderShell } from './ui/SliderShell';
 import { useAuth } from '../context/AuthContext';
 import { useMenuConfig } from '../context/MenuConfigContext';
+import { supabase } from '../../lib/supabase';
+import { getCachedQrByTableId, upsertCachedQrEntries } from '../utils/qrLocalCache';
 
 interface QRCodeSliderProps {
+  tableId?: string;
   tableNumber: number;
   onClose: () => void;
   /** Number of tables in the restaurant (for API batch generation). */
@@ -15,7 +18,6 @@ interface QRCodeSliderProps {
 }
 
 const FALLBACK_ORDER_BASE = 'http://localhost:5175';
-
 function slugifyRestaurantName(name: string): string {
   if (!name || typeof name !== 'string') return 'default';
   let s = name.trim().toLowerCase();
@@ -26,6 +28,7 @@ function slugifyRestaurantName(name: string): string {
 }
 
 export function QRCodeSlider({
+  tableId,
   tableNumber,
   onClose,
   storedOrderUrl,
@@ -41,11 +44,74 @@ export function QRCodeSlider({
   const orderUrl = `${base.replace(/\/$/, '')}/order/${slug}/table/${tableNumber}`;
   const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(orderUrl)}&color=ff6b35`;
   const [copied, setCopied] = useState(false);
+  const [qrLoading, setQrLoading] = useState(false);
+  const [lazyQrBase64, setLazyQrBase64] = useState<string | null>(null);
+  const [lazyFetchTried, setLazyFetchTried] = useState(false);
 
-  const hasStored = Boolean(storedQrPngBase64?.trim());
+  useEffect(() => {
+    if (!tableId || !restaurant?.id || !supabase) return;
+    if (storedQrPngBase64?.trim()) return;
+
+    const cached = getCachedQrByTableId(restaurant.id, tableId);
+    if (cached) {
+      setLazyQrBase64(cached.qrPngBase64);
+      setLazyFetchTried(true);
+      return;
+    }
+
+    let alive = true;
+    setQrLoading(true);
+    setLazyFetchTried(true);
+    void supabase
+      .from('tables')
+      .select('qr_png_base64')
+      .eq('restaurant_id', restaurant.id)
+      .eq('id', tableId)
+      .maybeSingle()
+      .then(({ data }) => {
+        if (!alive) return;
+        const value = typeof data?.qr_png_base64 === 'string' ? data.qr_png_base64.trim() : '';
+        const next = value || null;
+        upsertCachedQrEntries(restaurant.id, [
+          {
+            tableId,
+            tableNumber,
+            qrPngBase64: next,
+            orderUrl: storedOrderUrl ?? null,
+          },
+        ]);
+        setLazyQrBase64(next);
+      })
+      .catch(() => {
+        if (!alive) return;
+        upsertCachedQrEntries(restaurant.id, [
+          {
+            tableId,
+            tableNumber,
+            qrPngBase64: null,
+            orderUrl: storedOrderUrl ?? null,
+          },
+        ]);
+        setLazyQrBase64(null);
+      })
+      .finally(() => {
+        if (!alive) return;
+        setQrLoading(false);
+      });
+
+    return () => {
+      alive = false;
+    };
+  }, [restaurant?.id, storedOrderUrl, storedQrPngBase64, tableId, tableNumber]);
+
+  const resolvedStoredQr = useMemo(
+    () => (storedQrPngBase64?.trim() ? storedQrPngBase64.trim() : lazyQrBase64),
+    [storedQrPngBase64, lazyQrBase64]
+  );
+  const hasStored = Boolean(resolvedStoredQr?.trim());
   const displayUrl = storedOrderUrl?.trim() || orderUrl;
   const displayQrSrc = hasStored
-    ? `data:image/png;base64,${storedQrPngBase64!.trim()}`
+    ? `data:image/png;base64,${resolvedStoredQr!.trim()}`
     : qrImageUrl;
   const isDataUrl = displayQrSrc.startsWith('data:');
 
@@ -100,15 +166,26 @@ export function QRCodeSlider({
     >
       <div className="flex flex-col items-center">
         <div className="bg-white rounded-2xl border-2 border-dashed border-gray-200 p-6 mb-5">
-          <img
-            src={displayQrSrc}
-            alt={`QR for Table ${tableNumber}`}
-            className="w-[240px] h-[240px]"
-          />
+          {qrLoading ? (
+            <div className="w-[240px] h-[240px] flex items-center justify-center text-sm text-gray-400">
+              Loading QR...
+            </div>
+          ) : (
+            <img
+              src={displayQrSrc}
+              alt={`QR for Table ${tableNumber}`}
+              className="w-[240px] h-[240px]"
+            />
+          )}
         </div>
         {hasStored && (
           <p className="text-[10px] text-gray-400 mb-2 text-center">Stored QR from database</p>
         )}
+        {!hasStored && lazyFetchTried && !qrLoading ? (
+          <p className="text-[10px] text-amber-600 mb-2 text-center">
+            Stored QR not found. Showing generated fallback preview.
+          </p>
+        ) : null}
 
         <div className="flex items-center gap-2 bg-primary/10 text-primary px-4 py-2 rounded-full mb-5">
           <QrCode className="w-4 h-4" />

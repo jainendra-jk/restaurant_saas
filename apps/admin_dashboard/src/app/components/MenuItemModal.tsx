@@ -94,12 +94,26 @@ export function MenuItemModal({ item, categories, onClose, onSave, isNew }: Menu
   const [newSizeLabel, setNewSizeLabel] = useState('');
   const [newSizePrice, setNewSizePrice] = useState('');
   const [showCategoryDropdown, setShowCategoryDropdown] = useState(false);
+  const [formError, setFormError] = useState<string | null>(null);
   const categoryDropdownRef = useRef<HTMLDivElement>(null);
 
   useClickOutside(categoryDropdownRef, () => setShowCategoryDropdown(false), showCategoryDropdown);
 
   const handleSave = () => {
+    const name = editForm.name.trim();
+    const selectedCategory = editForm.categories?.[0]?.trim() ?? '';
+    if (!name) {
+      setFormError('Item name is required.');
+      return;
+    }
+    if (!selectedCategory) {
+      setFormError('Please select a category before saving.');
+      return;
+    }
+    setFormError(null);
     const updatedForm = { ...editForm };
+    updatedForm.name = name;
+    updatedForm.categories = [selectedCategory];
     if (updatedForm.sizes && updatedForm.sizes.length > 0) {
       updatedForm.price = updatedForm.sizes[0].price;
     }
@@ -249,6 +263,11 @@ export function MenuItemModal({ item, categories, onClose, onSave, isNew }: Menu
                 </div>
               )}
             </div>
+            {categories.length === 0 ? (
+              <p className="text-xs text-amber-700 mt-1.5">
+                Add at least one category first, then add items.
+              </p>
+            ) : null}
           </div>
 
           {/* Portions / Sizes */}
@@ -357,6 +376,7 @@ export function MenuItemModal({ item, categories, onClose, onSave, isNew }: Menu
             </div>
           </div>
         </div>
+        {formError ? <p className="text-xs text-danger mt-3">{formError}</p> : null}
 
         {/* Footer buttons */}
         <div className="flex items-center gap-3 mt-6">
@@ -368,7 +388,7 @@ export function MenuItemModal({ item, categories, onClose, onSave, isNew }: Menu
           </button>
           <button
             onClick={handleSave}
-            disabled={isNew && !editForm.name.trim()}
+            disabled={!editForm.name.trim() || !editForm.categories?.[0]?.trim()}
             className="flex-1 px-4 py-2.5 rounded-xl text-xs bg-primary text-white hover:brightness-90 transition-colors cursor-pointer shadow-sm disabled:opacity-40 disabled:cursor-not-allowed"
           >
             {isNew ? 'Add Item' : 'Save Changes'}

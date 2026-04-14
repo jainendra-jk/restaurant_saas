@@ -6,6 +6,8 @@
     "City Name, State 54321"
   ],
   "phone": "123-456-7890",
+  "gstNumber": "",
+  "fssaiNumber": "",
   "thankYouMessage": "Thank You For Supporting Local Business!",
   "vendorId": "—",
   "defaultPaymentMethod": "To Pay at Table",

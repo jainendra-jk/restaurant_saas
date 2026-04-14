@@ -15,7 +15,9 @@ const FALLBACK_FONT = 'helvetica';
 const FONT_SIZE_TITLE = 12;
 const FONT_SIZE_NORMAL = 9;
 const FONT_SIZE_SMALL = 8;
+const FONT_SIZE_COMPLIANCE = 7;
 const LINE_HEIGHT = 5;
+const LINE_HEIGHT_COMPLIANCE = 4;
 const DASH = [2, 2];
 const PRICE_WIDTH = 22;
 const UNCONFIGURED_ADDRESS_LABEL = 'Address not configured';
@@ -31,7 +33,9 @@ export interface BillBranding {
   /** Multi-line address (newline-separated), each line centered */
   address?: string;
   contact?: string;
-  /** FSSAI licence number (e.g. 14-digit). Shown on bill when provided. */
+  /** GST registration number. Shown as "GST …" when provided. */
+  gstNumber?: string;
+  /** FSSAI licence number (e.g. 14-digit). Shown as "FSSAI: …" when provided. */
   fssaiNumber?: string;
   /** Optional tax rules from profile. If present and non-empty, bill shows Sub Total + each tax line + TOTAL. */
   taxRules?: TaxRule[];
@@ -92,13 +96,25 @@ export function generateCustomerBillPDF(order: Order, branding: BillBranding): j
     doc.text(addrLine, W / 2, y, { align: 'center', maxWidth: W - 2 * MARGIN });
     y += LINE_HEIGHT;
   }
+  const headerMaxW = W - 2 * MARGIN;
   if (branding.contact?.trim()) {
-    doc.text(branding.contact.trim(), W / 2, y, { align: 'center' });
-    y += LINE_HEIGHT;
+    const phoneLines = doc.splitTextToSize(`Phone: ${branding.contact.trim()}`, headerMaxW);
+    doc.text(phoneLines, W / 2, y, { align: 'center' });
+    y += phoneLines.length * LINE_HEIGHT;
   }
-  if (branding.fssaiNumber?.trim()) {
-    doc.text(`FSSAI No.: ${branding.fssaiNumber.trim()}`, W / 2, y, { align: 'center' });
-    y += LINE_HEIGHT;
+  if (branding.gstNumber?.trim() || branding.fssaiNumber?.trim()) {
+    doc.setFontSize(FONT_SIZE_COMPLIANCE);
+    if (branding.gstNumber?.trim()) {
+      const gstLines = doc.splitTextToSize(`GST: ${branding.gstNumber.trim()}`, headerMaxW);
+      doc.text(gstLines, W / 2, y, { align: 'center' });
+      y += gstLines.length * LINE_HEIGHT_COMPLIANCE;
+    }
+    if (branding.fssaiNumber?.trim()) {
+      const fssaiLines = doc.splitTextToSize(`FSSAI: ${branding.fssaiNumber.trim()}`, headerMaxW);
+      doc.text(fssaiLines, W / 2, y, { align: 'center' });
+      y += fssaiLines.length * LINE_HEIGHT_COMPLIANCE;
+    }
+    doc.setFontSize(FONT_SIZE_SMALL);
   }
   y += 2;
   dashedLine(doc, y);

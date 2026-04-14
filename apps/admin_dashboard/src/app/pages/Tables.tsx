@@ -13,6 +13,8 @@ import { PageHeader } from '../components/ui/PageHeader';
 import { ConfirmModal } from '../components/ui/ConfirmModal';
 import { SliderLayout } from '../components/ui/SliderLayout';
 import { AdminTablesSkeleton } from '../components/AppSkeletons';
+import { supabase } from '../../lib/supabase';
+import { getCachedQrByTableId, upsertCachedQrEntries } from '../utils/qrLocalCache';
 
 type SliderState = { type: 'orders' | 'qr'; tableNumber: number } | null;
 
@@ -91,6 +93,34 @@ export function Tables() {
     return `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(orderUrl)}&color=ff6b35`;
   };
 
+  const getStoredQrForTable = async (tableId: string, existing?: string | null): Promise<string | null> => {
+    const existingTrimmed = existing?.trim() ?? '';
+    if (existingTrimmed) return existingTrimmed;
+    if (restaurant?.id) {
+      const cached = getCachedQrByTableId(restaurant.id, tableId);
+      if (cached) return cached.qrPngBase64;
+    }
+    if (!supabase || !restaurant?.id) return null;
+    const { data } = await supabase
+      .from('tables')
+      .select('qr_png_base64')
+      .eq('restaurant_id', restaurant.id)
+      .eq('id', tableId)
+      .maybeSingle();
+    const value = typeof data?.qr_png_base64 === 'string' ? data.qr_png_base64.trim() : '';
+    const next = value || null;
+    const tableNumber = tables.find((t) => t.id === tableId)?.number ?? 0;
+    upsertCachedQrEntries(restaurant.id, [
+      {
+        tableId,
+        tableNumber,
+        qrPngBase64: next,
+        orderUrl: tables.find((t) => t.id === tableId)?.orderUrl ?? null,
+      },
+    ]);
+    return next;
+  };
+
   const toQrBlob = async (tableNumber: number, storedQrPngBase64?: string | null): Promise<Blob> => {
     const trimmed = storedQrPngBase64?.trim();
     if (trimmed) {
@@ -119,7 +149,8 @@ export function Tables() {
 
       for (const table of tables) {
         try {
-          const blob = await toQrBlob(table.number, table.qrPngBase64);
+          const storedQr = await getStoredQrForTable(table.id, table.qrPngBase64);
+          const blob = await toQrBlob(table.number, storedQr);
           const bytes = await blob.arrayBuffer();
           folder?.file(`table-${table.number}.png`, bytes);
           success += 1;
@@ -180,6 +211,7 @@ export function Tables() {
             />
           ) : slider?.type === 'qr' ? (
             <QRCodeSlider
+              tableId={tables.find((t) => t.number === slider.tableNumber)?.id}
               tableNumber={slider.tableNumber}
               onClose={() => setSlider(null)}
               totalTableCount={Math.max(1, tables.length)}

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Outlet, NavLink, useNavigate, useLocation } from 'react-router';
 import { useAuth, requiresAuth } from '../context/AuthContext';
 import {
@@ -38,11 +38,21 @@ const DYNAMIC_FAVICON_ID = 'dashboard-dynamic-favicon';
 
 export function Layout() {
   const [collapsed, setCollapsed] = useState(false);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
   const { branding } = useMenuConfig();
   const { logoUrl } = useProfileLogo();
   const { signOut } = useAuth();
+
+  const handleLogout = useCallback(() => {
+    if (isLoggingOut) return;
+    setIsLoggingOut(true);
+    if (requiresAuth()) {
+      signOut().catch((e) => console.error('Logout failed', e));
+    }
+    navigate('/login', { replace: true, state: { logoutInProgress: true } });
+  }, [isLoggingOut, navigate, signOut]);
 
   // Tab title: "{restaurantName} Dashboard", update when branding or route changes
   useEffect(() => {
@@ -163,7 +173,8 @@ export function Layout() {
         {/* Logout */}
         <div className="px-3 pb-4 flex-shrink-0 border-t border-gray-100 pt-3">
           <button
-            onClick={() => (requiresAuth() ? signOut().then(() => navigate('/login')) : navigate('/login'))}
+            onClick={handleLogout}
+            disabled={isLoggingOut}
             className={`flex items-center py-2.5 rounded-xl text-sm transition-all duration-300 ease-[cubic-bezier(0.4,0,0.2,1)] w-full text-red-500 hover:bg-red-50 cursor-pointer ${
               collapsed ? 'justify-center px-0 gap-0' : 'gap-3 px-3'
             }`}

@@ -257,7 +257,7 @@ function ActivityFeed({
               className="w-1 h-1 rounded-full flex-shrink-0"
               style={{ backgroundColor: "#f97316" }}
             />
-            <p className="text-[11px] text-gray-400 truncate">{msg.text}</p>
+            <p className="text-[11px] text-gray-400 truncate">{msg}</p>
           </motion.div>
         ))}
       </AnimatePresence>

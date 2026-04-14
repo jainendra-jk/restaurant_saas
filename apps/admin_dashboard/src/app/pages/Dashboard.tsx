@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ShoppingBag,
@@ -9,13 +9,12 @@ import {
   CreditCard,
   X,
 } from 'lucide-react';
-import { supabase } from '../../lib/supabase';
 import { useOrders } from '../context/OrdersContext';
 import { useMenuConfig } from '../context/MenuConfigContext';
 import { usePayment, type PaymentDetails } from '../context/PaymentContext';
 import { useRestaurantProfile } from '../context/RestaurantProfileContext';
 import { useAuth } from '../context/AuthContext';
-import { fetchAnalyticsSnapshot, type AnalyticsSnapshot } from '../utils/analytics';
+import { useAnalyticsData } from '../context/AnalyticsContext';
 import { sortByPlacedAt, formatTime24ToAmPm } from '../utils/helpers';
 import { StatCard } from '../components/ui/StatCard';
 import { DashboardOrderSection } from '../components/DashboardOrderSection';
@@ -57,12 +56,11 @@ export function Dashboard() {
   const { orders, initialLoading: ordersInitialLoading } = useOrders();
   const { branding } = useMenuConfig();
   const { restaurant } = useAuth();
+  const { hourly, live, loading: analyticsLoading } = useAnalyticsData();
   const { paymentMode, hasSavedPaymentDetails, isPaymentConfigured, paymentDetails } = usePayment();
   const { profile: restaurantProfile, saveProfile } = useRestaurantProfile();
   const [shopToggleBusy, setShopToggleBusy] = useState(false);
-  const [analytics, setAnalytics] = useState<AnalyticsSnapshot | null>(null);
-  const refreshTimerRef = useRef<number | null>(null);
-  const subRef = useRef<ReturnType<NonNullable<typeof supabase>['channel']> | null>(null);
+  const [shopToggleTarget, setShopToggleTarget] = useState<'open' | 'close' | null>(null);
 
   const closingTime = restaurantProfile?.closingTime ?? '23:00';
   const openingTime = restaurantProfile?.openingTime ?? '11:00';
@@ -95,12 +93,14 @@ export function Dashboard() {
     async (nextIsOpen: boolean) => {
       if (!restaurantProfile || shopToggleBusy) return;
       try {
+        setShopToggleTarget(nextIsOpen ? 'open' : 'close');
         setShopToggleBusy(true);
         await saveProfile({ ...restaurantProfile, isOpen: nextIsOpen });
       } catch (error) {
         console.error('Failed to update shop status', error);
       } finally {
         setShopToggleBusy(false);
+        setShopToggleTarget(null);
       }
     },
     [restaurantProfile, saveProfile, shopToggleBusy]
@@ -123,80 +123,11 @@ export function Dashboard() {
   const showPaymentBanner =
     paymentMode !== 'pay_at_table' && !hasSavedPaymentDetails && showPaymentPrompt;
 
-  useEffect(() => {
-    if (!supabase || !restaurant?.id) {
-      setAnalytics(null);
-      return;
-    }
-
-    let cancelled = false;
-
-    const refresh = async () => {
-      try {
-        const next = await fetchAnalyticsSnapshot(supabase, restaurant.id);
-        if (!cancelled) {
-          setAnalytics(next);
-        }
-      } catch {
-        // Keep previous snapshot on transient failures.
-      }
-    };
-
-    const scheduleRefresh = (delayMs: number) => {
-      if (refreshTimerRef.current) window.clearTimeout(refreshTimerRef.current);
-      refreshTimerRef.current = window.setTimeout(() => {
-        void refresh();
-      }, delayMs);
-    };
-
-    void refresh();
-
-    if (subRef.current) {
-      subRef.current.unsubscribe();
-      subRef.current = null;
-    }
-    subRef.current = supabase
-      .channel(`dashboard-analytics-${restaurant.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'orders' },
-        (payload) => {
-          const rid = (payload.new as { restaurant_id?: string } | null)?.restaurant_id;
-          if (rid && rid !== restaurant.id) return;
-          scheduleRefresh(350);
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'orders' },
-        (payload) => {
-          const newRow = (payload.new as { restaurant_id?: string } | null) ?? null;
-          const oldRow = (payload.old as { restaurant_id?: string } | null) ?? null;
-          const rid = newRow?.restaurant_id ?? oldRow?.restaurant_id;
-          if (rid && rid !== restaurant.id) return;
-          scheduleRefresh(650);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      cancelled = true;
-      if (refreshTimerRef.current) {
-        window.clearTimeout(refreshTimerRef.current);
-        refreshTimerRef.current = null;
-      }
-      if (subRef.current) {
-        subRef.current.unsubscribe();
-        subRef.current = null;
-      }
-    };
-  }, [restaurant?.id]);
-
-  const statSnapshot = analytics ?? {
-    totalOrdersToday: 0,
-    revenueToday: 0,
-    mostOrderedDish: '-',
-    peakHours: '-',
+  const statSnapshot = {
+    totalOrdersToday: live.totalOrdersToday,
+    revenueToday: live.revenueToday,
+    mostOrderedDish: hourly.mostOrderedDish,
+    peakHours: hourly.peakHours,
   };
 
   const stats = useMemo(
@@ -229,10 +160,26 @@ export function Dashboard() {
     [statSnapshot.totalOrdersToday, statSnapshot.revenueToday, statSnapshot.mostOrderedDish, statSnapshot.peakHours, branding.currency]
   );
 
-  const showInitialSkeleton = ordersInitialLoading || (!!restaurant?.id && analytics === null);
+  const showInitialSkeleton = ordersInitialLoading || (!!restaurant?.id && analyticsLoading);
   if (showInitialSkeleton) {
     return <AdminDashboardSkeleton />;
   }
+
+  const todaySummaryText = `${statSnapshot.totalOrdersToday} orders · ${branding.currency}${statSnapshot.revenueToday.toLocaleString()}`;
+
+  const notificationsCount = newOrders.length;
+  const notificationsText = `${notificationsCount} new`;
+  const shopToggleLabel = shopToggleBusy
+    ? shopToggleTarget === 'close'
+      ? 'Closing...'
+      : shopToggleTarget === 'open'
+        ? 'Opening...'
+        : persistedIsShopOpen
+          ? 'Shop open'
+          : 'Shop closed'
+    : persistedIsShopOpen
+      ? 'Shop open'
+      : 'Shop closed';
 
   return (
     <div className="space-y-6">
@@ -274,6 +221,8 @@ export function Dashboard() {
           onOpenShop={handleOpenShop}
           lastClosedText={lastClosedText}
           nextOpeningText={nextOpeningText}
+          notificationsText={notificationsText}
+          todaySummaryText={todaySummaryText}
         />
       ) : (
         <>
@@ -285,7 +234,7 @@ export function Dashboard() {
             </div>
             <div className="flex items-center gap-2 flex-shrink-0">
               <span className="text-xs text-gray-500">
-                Shop open
+                {shopToggleLabel}
               </span>
               <button
                 type="button"

@@ -39,8 +39,88 @@ async def _supabase_logout(access_token: str) -> None:
         )
 
 
+def _service_headers(key: str) -> dict:
+    return {
+        "apikey": key,
+        "Authorization": f"Bearer {key}",
+        "Content-Type": "application/json",
+    }
+
+
+async def _resolve_user_id(access_token: str) -> Optional[str]:
+    base = settings.supabase_base()
+    key = settings.supabase_service_role_key.strip()
+    if not base or not key:
+        return None
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        user_resp = await client.get(
+            f"{base}/auth/v1/user",
+            headers={
+                "Authorization": f"Bearer {access_token}",
+                "apikey": key,
+            },
+        )
+    if user_resp.status_code != 200:
+        return None
+    return str((user_resp.json() or {}).get("id") or "").strip() or None
+
+
+async def _resolve_restaurant_id_for_user(user_id: str) -> Optional[str]:
+    base = settings.supabase_base()
+    key = settings.supabase_service_role_key.strip()
+    if not base or not key:
+        return None
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        profile_resp = await client.get(
+            f"{base}/rest/v1/staff_profiles",
+            params={
+                "user_id": f"eq.{user_id}",
+                "select": "restaurant_id",
+                "limit": 1,
+            },
+            headers=_service_headers(key),
+        )
+    if profile_resp.status_code != 200:
+        return None
+    rows = profile_resp.json() or []
+    if not isinstance(rows, list) or not rows:
+        return None
+    return str((rows[0] or {}).get("restaurant_id") or "").strip() or None
+
+
+async def _close_store_for_restaurant(restaurant_id: str) -> None:
+    base = settings.supabase_base()
+    key = settings.supabase_service_role_key.strip()
+    if not base or not key:
+        return
+    async with httpx.AsyncClient(timeout=20.0) as client:
+        await client.patch(
+            f"{base}/rest/v1/restaurants",
+            params={"id": f"eq.{restaurant_id}"},
+            json={"is_open": False},
+            headers={**_service_headers(key), "Prefer": "return=minimal"},
+        )
+        await client.patch(
+            f"{base}/rest/v1/tables",
+            params={"restaurant_id": f"eq.{restaurant_id}"},
+            json={"status": "inactive"},
+            headers={**_service_headers(key), "Prefer": "return=minimal"},
+        )
+
+
+async def _close_store_for_token(access_token: str) -> None:
+    user_id = await _resolve_user_id(access_token)
+    if not user_id:
+        return
+    restaurant_id = await _resolve_restaurant_id_for_user(user_id)
+    if not restaurant_id:
+        return
+    await _close_store_for_restaurant(restaurant_id)
+
+
 async def _schedule_logout(event_id: str, access_token: str, delay_ms: int) -> None:
     await asyncio.sleep(delay_ms / 1000.0)
+    await _close_store_for_token(access_token)
     await _supabase_logout(access_token)
     async with _pending_logout_lock:
         _pending_logout_tasks.pop(event_id, None)

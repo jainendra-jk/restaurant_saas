@@ -10,6 +10,7 @@ import {
 import { supabase } from '../../lib/supabase';
 import { useAuth } from './AuthContext';
 import { playNotificationSound } from '../utils/notificationSound';
+import { toast } from 'sonner';
 import {
   initialOrders,
   initialTables,
@@ -133,6 +134,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const notifiedOrderIdsRef = useRef<Set<string>>(new Set());
   const tableNumberByIdRef = useRef<Map<string, number>>(new Map());
   const hasLoadedOnceRef = useRef(false);
+  const loadVersionRef = useRef(0);
 
   const setOrders = useCallback((updater: Order[] | ((prev: Order[]) => Order[])) => {
     setOrdersState((prev) => {
@@ -182,7 +184,10 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
   const updateTableStatus = useCallback(
     (tableId: string, status: 'active' | 'inactive') => {
+      let previousStatus: Table['status'] | null = null;
       setTablesState((prev) => {
+        const current = prev.find((t) => t.id === tableId);
+        previousStatus = current?.status ?? null;
         const next = prev.map((t) =>
           t.id === tableId ? { ...t, status } : t
         );
@@ -192,15 +197,47 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         }
         return next;
       });
-      if (supabase) {
-        supabase.from('tables').update({ status }).eq('id', tableId).then(() => {});
+      if (supabase && restaurant?.id) {
+        void (async () => {
+          try {
+            await supabase
+              .from('tables')
+              .update({ status })
+              .eq('id', tableId)
+              .eq('restaurant_id', restaurant.id)
+              .throwOnError();
+
+            // Lightweight consistency refresh for this row.
+            const { data: refreshed } = await supabase
+              .from('tables')
+              .select('id, number, status, seats, order_url, qr_png_base64')
+              .eq('id', tableId)
+              .eq('restaurant_id', restaurant.id)
+              .maybeSingle();
+            if (refreshed) {
+              const mapped = mapDbTable(refreshed);
+              setTablesState((prev) => prev.map((t) => (t.id === tableId ? mapped : t)));
+            }
+          } catch (error) {
+            if (previousStatus) {
+              setTablesState((prev) =>
+                prev.map((t) => (t.id === tableId ? { ...t, status: previousStatus } : t))
+              );
+            }
+            console.error('Failed to update table status', error);
+            toast.error('Could not update table status. Please retry.');
+          }
+        })();
       }
     },
-    []
+    [restaurant?.id]
   );
 
   const updateTableSeats = useCallback((tableId: string, seats: number) => {
+    let previousSeats: number | null = null;
     setTablesState((prev) => {
+      const current = prev.find((t) => t.id === tableId);
+      previousSeats = typeof current?.seats === 'number' ? current.seats : null;
       const next = prev.map((t) => (t.id === tableId ? { ...t, seats } : t));
       if (!supabase) {
         mockTables = next;
@@ -208,10 +245,38 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
-    if (supabase) {
-      supabase.from('tables').update({ seats }).eq('id', tableId).then(() => {});
+    if (supabase && restaurant?.id) {
+      void (async () => {
+        try {
+          await supabase
+            .from('tables')
+            .update({ seats })
+            .eq('id', tableId)
+            .eq('restaurant_id', restaurant.id)
+            .throwOnError();
+
+          const { data: refreshed } = await supabase
+            .from('tables')
+            .select('id, number, status, seats, order_url, qr_png_base64')
+            .eq('id', tableId)
+            .eq('restaurant_id', restaurant.id)
+            .maybeSingle();
+          if (refreshed) {
+            const mapped = mapDbTable(refreshed);
+            setTablesState((prev) => prev.map((t) => (t.id === tableId ? mapped : t)));
+          }
+        } catch (error) {
+          if (typeof previousSeats === 'number') {
+            setTablesState((prev) =>
+              prev.map((t) => (t.id === tableId ? { ...t, seats: previousSeats } : t))
+            );
+          }
+          console.error('Failed to update table seats', error);
+          toast.error('Could not update table seats. Please retry.');
+        }
+      })();
     }
-  }, []);
+  }, [restaurant?.id]);
 
   const markAllNotificationsRead = useCallback(() => {
     setNotifications((prev) => prev.map((n) => ({ ...n, unread: false })));
@@ -276,6 +341,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!supabase || !restaurant) {
+      loadVersionRef.current += 1;
       setOrdersState(mockOrders);
       setTablesState(mockTables);
       setInitialLoading(false);
@@ -290,6 +356,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     seenOrderIdsRef.current = new Set();
     notifiedOrderIdsRef.current = new Set();
     hasLoadedOnceRef.current = false;
+    loadVersionRef.current += 1;
+    const effectLoadVersion = loadVersionRef.current;
     const load = async (mode: 'initial' | 'refresh' = 'initial') => {
       if (mode === 'initial') {
         setInitialLoading(true);
@@ -303,6 +371,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           .eq('restaurant_id', restaurant.id)
           .order('number');
         if (tblErr) throw tblErr;
+        if (effectLoadVersion !== loadVersionRef.current) return;
 
         if (tblRows?.length) {
           const mappedTables = tblRows.map(mapDbTable);
@@ -324,6 +393,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           .eq('restaurant_id', restaurant.id)
           .order('placed_at', { ascending: false });
         if (ordErr) throw ordErr;
+        if (effectLoadVersion !== loadVersionRef.current) return;
 
         if (ordRows?.length) {
           const tableMap = new Map<string, number>();
@@ -362,8 +432,10 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           hasLoadedOnceRef.current = true;
         }
       } catch (err) {
+        if (effectLoadVersion !== loadVersionRef.current) return;
         console.error('Failed to load orders/tables', err);
       } finally {
+        if (effectLoadVersion !== loadVersionRef.current) return;
         if (mode === 'initial') {
           setInitialLoading(false);
         } else {
@@ -580,6 +652,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     }, 5000);
 
     return () => {
+      loadVersionRef.current += 1;
       stopPollingFallback();
       if (subscribeWatchdog) window.clearTimeout(subscribeWatchdog);
       sub.unsubscribe();

@@ -3,6 +3,7 @@ import {
   useContext,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from 'react';
 import { useMenuConfig } from './MenuConfigContext';
@@ -246,14 +247,14 @@ export function PaymentProvider({ children }: { children: ReactNode }) {
     }
   })();
 
-  const value: PaymentContextValue = {
+  const value = useMemo<PaymentContextValue>(() => ({
     paymentDetails,
     hasSavedPaymentDetails: store.details !== null,
     isPaymentConfigured: isConfigured,
     paymentMode: store.paymentMode,
     savePayment,
     setPaymentMode,
-  };
+  }), [paymentDetails, store.details, isConfigured, store.paymentMode, savePayment, setPaymentMode]);
 
   return (
     <PaymentContext.Provider value={value}>

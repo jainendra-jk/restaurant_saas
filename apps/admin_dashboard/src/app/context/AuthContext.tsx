@@ -4,12 +4,14 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   type ReactNode,
 } from 'react';
 import { toast } from 'sonner';
-import { supabase, hasSupabase, setRememberMeCookieMode } from '../../lib/supabase';
+import { supabase, hasSupabase, setRememberMePreference } from '../../lib/supabase';
 import { closeStoreAndDeactivateTables, openStore } from '../utils/storeStatus';
 import { createLastTabLogoutController } from '../utils/lastTabLogout';
+import { writeLoginBrandingCache } from '../utils/loginBrandingCache';
 
 export interface RestaurantInfo {
   id: string;
@@ -33,15 +35,24 @@ export interface RestaurantInfo {
   sessionTimeoutMinutes: number;
 }
 
+export type AccessState = 'ready' | 'no_subscription' | 'onboarding_incomplete';
+
 interface AuthState {
   user: { id: string; email?: string } | null;
   restaurant: RestaurantInfo | null;
+  hasActiveEntitlement: boolean;
+  hasCompletedOnboarding: boolean;
+  accessState: AccessState;
   /** Supabase access JWT for calling apps/api (Bearer). */
   accessToken: string | null;
   loading: boolean;
   signIn: (
     email: string,
     password: string,
+    rememberMe?: boolean
+  ) => Promise<{ error: Error | null }>;
+  signInWithGoogle: (
+    redirectPath?: string,
     rememberMe?: boolean
   ) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -57,6 +68,8 @@ function normalizeText(v: unknown): string | null {
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantInfo | null>(null);
+  const [hasActiveEntitlement, setHasActiveEntitlement] = useState(false);
+  const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [lastActivityAt, setLastActivityAt] = useState<number>(() => Date.now());
@@ -68,7 +81,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .select('restaurant_id')
       .eq('user_id', userId)
       .maybeSingle();
-    if (!profile?.restaurant_id) return;
+    if (!profile?.restaurant_id) {
+      setHasCompletedOnboarding(false);
+      setRestaurant(null);
+      return;
+    }
+    setHasCompletedOnboarding(true);
     const { data: rest } = await supabase
       .from('restaurants')
       .select(
@@ -108,7 +126,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isOpen: rest.is_open !== false,
         sessionTimeoutMinutes: Number(rest.session_timeout_minutes) || 60,
       });
+      return;
     }
+    setRestaurant(null);
+  }, []);
+
+  const fetchEntitlement = useCallback(async (userId: string) => {
+    if (!supabase) return;
+    const { data } = await supabase
+      .from('saas_entitlements')
+      .select('status')
+      .eq('user_id', userId)
+      .maybeSingle();
+    const status = data?.status;
+    setHasActiveEntitlement(status === 'active' || status === 'trialing');
   }, []);
 
   useEffect(() => {
@@ -116,40 +147,55 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
       return;
     }
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
       setAccessToken(session?.access_token ?? null);
       if (session?.user) {
-        fetchRestaurant(session.user.id);
+        await Promise.all([fetchRestaurant(session.user.id), fetchEntitlement(session.user.id)]);
       } else {
         setRestaurant(null);
+        setHasCompletedOnboarding(false);
+        setHasActiveEntitlement(false);
       }
       setLoading(false);
     });
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange((_event, session) => {
+    } = supabase.auth.onAuthStateChange(async (_event, session) => {
       setUser(session?.user ? { id: session.user.id, email: session.user.email } : null);
       setAccessToken(session?.access_token ?? null);
       if (session?.user) {
-        fetchRestaurant(session.user.id);
+        await Promise.all([fetchRestaurant(session.user.id), fetchEntitlement(session.user.id)]);
       } else {
         setRestaurant(null);
+        setHasCompletedOnboarding(false);
+        setHasActiveEntitlement(false);
       }
     });
     return () => subscription.unsubscribe();
-  }, [fetchRestaurant]);
+  }, [fetchEntitlement, fetchRestaurant]);
+
+  useEffect(() => {
+    if (!restaurant) return;
+    const b = restaurant.branding;
+    const tagline = typeof b.tagline === 'string' ? b.tagline.trim() : '';
+    const welcomeRaw = typeof b.welcomeMessage === 'string' ? b.welcomeMessage.trim() : '';
+    writeLoginBrandingCache({
+      restaurantName: restaurant.name.trim(),
+      tagline,
+      welcomeMessage: welcomeRaw || 'Welcome back',
+    });
+  }, [restaurant]);
 
   const signIn = useCallback(
     async (email: string, password: string, rememberMe: boolean = true) => {
       if (!supabase) return { error: new Error('Supabase not configured') };
-      setRememberMeCookieMode(rememberMe);
+      setRememberMePreference(rememberMe);
 
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
       if (!error) {
         try {
-          const { data: sessionData } = await supabase.auth.getSession();
-          const userId = sessionData.session?.user?.id;
+          const userId = data.session?.user?.id;
           if (userId) {
             const { data: profile } = await supabase
               .from('staff_profiles')
@@ -169,18 +215,56 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const signInWithGoogle = useCallback(
+    async (redirectPath?: string, rememberMe: boolean = true) => {
+      if (!supabase) return { error: new Error('Supabase not configured') };
+      setRememberMePreference(rememberMe);
+      const origin =
+        typeof window !== 'undefined' && window.location.origin
+          ? window.location.origin
+          : import.meta.env.VITE_ADMIN_DASHBOARD_ORIGIN?.trim() || '';
+      const safePath =
+        typeof redirectPath === 'string' &&
+        redirectPath.startsWith('/') &&
+        !redirectPath.startsWith('//') &&
+        !redirectPath.includes('://')
+          ? redirectPath
+          : '/login';
+      const redirectTo = origin ? `${origin}${safePath}` : undefined;
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: 'google',
+        options: redirectTo ? { redirectTo } : undefined,
+      });
+      return { error: error ?? null };
+    },
+    []
+  );
+
   const signOut = useCallback(async () => {
-    if (supabase && restaurant?.id) {
+    const restaurantId = restaurant?.id ?? null;
+    const client = supabase;
+
+    // Optimistically clear client auth state so route guards react immediately.
+    setUser(null);
+    setRestaurant(null);
+    setAccessToken(null);
+    setHasCompletedOnboarding(false);
+    setHasActiveEntitlement(false);
+
+    if (!client) return;
+
+    if (restaurantId) {
       try {
-        await closeStoreAndDeactivateTables(supabase, restaurant.id);
+        await closeStoreAndDeactivateTables(client, restaurantId);
       } catch (e) {
         console.error('Failed to close store on logout', e);
       }
     }
-    if (supabase) await supabase.auth.signOut();
-    setUser(null);
-    setRestaurant(null);
-    setAccessToken(null);
+
+    const { error } = await client.auth.signOut();
+    if (error) {
+      console.error('Failed to sign out from auth provider', error);
+    }
   }, [restaurant?.id]);
 
   useEffect(() => {
@@ -220,15 +304,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const value: AuthState = {
+  const value = useMemo<AuthState>(() => ({
     user,
     restaurant,
+    hasActiveEntitlement,
+    hasCompletedOnboarding,
+    accessState: !hasActiveEntitlement
+      ? 'no_subscription'
+      : hasCompletedOnboarding
+        ? 'ready'
+        : 'onboarding_incomplete',
     accessToken,
     loading,
     signIn,
+    signInWithGoogle,
     signOut,
     setSessionTimeoutMinutes,
-  };
+  }), [
+    user,
+    restaurant,
+    hasActiveEntitlement,
+    hasCompletedOnboarding,
+    accessToken,
+    loading,
+    signIn,
+    signInWithGoogle,
+    signOut,
+    setSessionTimeoutMinutes,
+  ]);
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }

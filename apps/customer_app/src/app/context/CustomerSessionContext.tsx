@@ -40,7 +40,7 @@ export function CustomerSessionProvider({ children }: { children: ReactNode }) {
     tableNum: null,
     tableId: null,
     tableStatus: null,
-    restaurantOpen: true,
+    restaurantOpen: false,
     ready: false,
   });
 
@@ -58,7 +58,7 @@ export function CustomerSessionProvider({ children }: { children: ReactNode }) {
         tableNum: validNum ? tableNum : null,
         tableId: null,
         tableStatus: null,
-        restaurantOpen: true,
+        restaurantOpen: false,
         ready: true,
       });
       return;
@@ -66,6 +66,20 @@ export function CustomerSessionProvider({ children }: { children: ReactNode }) {
 
     let cancelled = false;
     let channel: ReturnType<NonNullable<typeof supabase>['channel']> | null = null;
+    let pollInterval: ReturnType<typeof window.setInterval> | null = null;
+    let subscribeWatchdog: ReturnType<typeof window.setTimeout> | null = null;
+    const stopPollingFallback = () => {
+      if (pollInterval) {
+        window.clearInterval(pollInterval);
+        pollInterval = null;
+      }
+    };
+    const startPollingFallback = () => {
+      if (pollInterval) return;
+      pollInterval = window.setInterval(() => {
+        if (!cancelled) void load();
+      }, 15000);
+    };
     const load = async () => {
       const { data: rest } = await supabase
         .from('restaurants')
@@ -79,7 +93,7 @@ export function CustomerSessionProvider({ children }: { children: ReactNode }) {
           tableNum,
           tableId: null,
           tableStatus: null,
-          restaurantOpen: true,
+          restaurantOpen: false,
           ready: true,
         });
         return;
@@ -130,12 +144,29 @@ export function CustomerSessionProvider({ children }: { children: ReactNode }) {
               void load();
             }
           )
-          .subscribe();
+          .subscribe((status) => {
+            if (status === 'SUBSCRIBED') {
+              stopPollingFallback();
+              if (subscribeWatchdog) {
+                window.clearTimeout(subscribeWatchdog);
+                subscribeWatchdog = null;
+              }
+              return;
+            }
+            if (status === 'TIMED_OUT' || status === 'CHANNEL_ERROR' || status === 'CLOSED') {
+              startPollingFallback();
+            }
+          });
       }
     };
     void load();
+    subscribeWatchdog = window.setTimeout(() => {
+      startPollingFallback();
+    }, 5000);
     return () => {
       cancelled = true;
+      stopPollingFallback();
+      if (subscribeWatchdog) window.clearTimeout(subscribeWatchdog);
       if (channel) void supabase.removeChannel(channel);
     };
   }, [
@@ -175,7 +206,7 @@ export function useCustomerSession(): CustomerSession {
     tableNum: null,
     tableId: null,
     tableStatus: null,
-    restaurantOpen: true,
+    restaurantOpen: false,
     ready: true,
   };
 }

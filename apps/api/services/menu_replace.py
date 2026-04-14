@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Any, List, Tuple
 
 import httpx
@@ -278,7 +279,11 @@ async def replace_menu_for_restaurant(restaurant_id: str, menu_payload: dict) ->
             currency = normalized.get("currency")
             palette = normalized.get("palette")
             branding = normalized.get("branding")
-            restaurant_patch: dict[str, Any] = {}
+            now_iso = datetime.now(timezone.utc).isoformat()
+            restaurant_patch: dict[str, Any] = {
+                "menu_import_completed_at": now_iso,
+                "onboarding_completed_at": now_iso,
+            }
             if isinstance(palette, dict) and palette:
                 restaurant_patch["palette"] = palette
             if isinstance(currency, str) and currency.strip():
@@ -286,13 +291,12 @@ async def replace_menu_for_restaurant(restaurant_id: str, menu_payload: dict) ->
             if isinstance(branding, dict) and branding:
                 restaurant_patch["branding"] = branding
 
-            if restaurant_patch:
-                update_restaurant = await client.patch(
-                    f"{base}/rest/v1/restaurants",
-                    headers={**headers, "Prefer": "return=minimal"},
-                    params={"id": f"eq.{restaurant_id}"},
-                    json=restaurant_patch,
-                )
-                _ensure_supabase_success(update_restaurant, "Update restaurant profile fields", (200, 204))
+            update_restaurant = await client.patch(
+                f"{base}/rest/v1/restaurants",
+                headers={**headers, "Prefer": "return=minimal"},
+                params={"id": f"eq.{restaurant_id}"},
+                json=restaurant_patch,
+            )
+            _ensure_supabase_success(update_restaurant, "Update restaurant profile fields", (200, 204))
     except httpx.RequestError as e:
         raise RuntimeError(f"Supabase request failed: {e}") from e

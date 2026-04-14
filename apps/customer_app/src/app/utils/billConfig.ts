@@ -16,6 +16,8 @@ export interface BillConfig {
   businessName: string;
   address: string[];
   phone: string;
+  gstNumber?: string;
+  fssaiNumber?: string;
   thankYouMessage: string;
   vendorId: string;
   defaultPaymentMethod: string;
@@ -39,6 +41,8 @@ export const billConfig: BillConfig = {
   businessName: raw.businessName ?? DEFAULTS.businessName,
   address: Array.isArray(raw.address) && raw.address.length > 0 ? raw.address : DEFAULTS.address,
   phone: raw.phone ?? DEFAULTS.phone,
+  gstNumber: typeof raw.gstNumber === "string" ? raw.gstNumber : "",
+  fssaiNumber: typeof raw.fssaiNumber === "string" ? raw.fssaiNumber : "",
   thankYouMessage: raw.thankYouMessage ?? DEFAULTS.thankYouMessage,
   vendorId: raw.vendorId ?? DEFAULTS.vendorId,
   defaultPaymentMethod: raw.defaultPaymentMethod ?? DEFAULTS.defaultPaymentMethod,

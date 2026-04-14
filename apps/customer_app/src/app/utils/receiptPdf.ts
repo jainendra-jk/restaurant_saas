@@ -16,6 +16,10 @@ const PRICE_COLUMN_WIDTH_MM = 26;
 /** Single receipt font (Roboto), registered in receiptFont.ts */
 const RECEIPT_FONT = getUnicodeFontName();
 const DOT_PATTERN = [1, 2];
+const FONT_SIZE_ADDRESS_BLOCK = 9;
+const FONT_SIZE_COMPLIANCE = 7;
+const LINE_STEP_ADDRESS_MM = 5;
+const LINE_STEP_COMPLIANCE_MM = 4;
 
 /** Set document font for drawing price text (currency symbol). Always use the receipt font (Roboto). */
 function setPriceFont(doc: jsPDF, fontSize: number, style: "normal" | "bold" = "normal") {
@@ -120,7 +124,9 @@ export async function generateReceiptPdf(
 
   const headerName = (restaurantName ?? bill.businessName)?.trim() ?? "";
   const addressLines = bill.address;
-  const phone = bill.phone;
+  const phone = bill.phone?.trim() ?? "";
+  const gstNumber = bill.gstNumber?.trim() ?? "";
+  const fssaiNumber = bill.fssaiNumber?.trim() ?? "";
   const thankYou = bill.thankYouMessage;
   const vendorId = bill.vendorId;
   const paymentMethod = bill.defaultPaymentMethod;
@@ -137,15 +143,37 @@ export async function generateReceiptPdf(
   }
 
   doc.setFont(RECEIPT_FONT, "normal");
-  doc.setFontSize(9);
+  doc.setFontSize(FONT_SIZE_ADDRESS_BLOCK);
   for (const line of addressLines) {
-    const lineText = truncateToWidth(doc, line, 9, CONTENT_WIDTH_MM);
+    const lineText = truncateToWidth(doc, line, FONT_SIZE_ADDRESS_BLOCK, CONTENT_WIDTH_MM);
     doc.text(lineText, RECEIPT_WIDTH_MM / 2, y, { align: "center" });
-    y += 5;
+    y += LINE_STEP_ADDRESS_MM;
   }
-  const phoneText = truncateToWidth(doc, phone, 9, CONTENT_WIDTH_MM);
-  doc.text(phoneText, RECEIPT_WIDTH_MM / 2, y, { align: "center" });
-  y += 8;
+  if (phone) {
+    const phoneText = truncateToWidth(doc, `Phone: ${phone}`, FONT_SIZE_ADDRESS_BLOCK, CONTENT_WIDTH_MM);
+    doc.text(phoneText, RECEIPT_WIDTH_MM / 2, y, { align: "center" });
+    y += LINE_STEP_ADDRESS_MM;
+  }
+  if (gstNumber || fssaiNumber) {
+    doc.setFontSize(FONT_SIZE_COMPLIANCE);
+    if (gstNumber) {
+      const gstText = truncateToWidth(doc, `GST: ${gstNumber}`, FONT_SIZE_COMPLIANCE, CONTENT_WIDTH_MM);
+      doc.text(gstText, RECEIPT_WIDTH_MM / 2, y, { align: "center" });
+      y += LINE_STEP_COMPLIANCE_MM;
+    }
+    if (fssaiNumber) {
+      const fssaiText = truncateToWidth(
+        doc,
+        `FSSAI: ${fssaiNumber}`,
+        FONT_SIZE_COMPLIANCE,
+        CONTENT_WIDTH_MM
+      );
+      doc.text(fssaiText, RECEIPT_WIDTH_MM / 2, y, { align: "center" });
+      y += LINE_STEP_COMPLIANCE_MM;
+    }
+    doc.setFontSize(FONT_SIZE_ADDRESS_BLOCK);
+  }
+  y += 3;
 
   drawDottedLine(doc, y);
   y += 8;

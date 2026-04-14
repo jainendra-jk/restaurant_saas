@@ -22,6 +22,8 @@ interface ReviewScreenProps {
   onConfirm: () => void | Promise<void>;
   onEdit: (step: number, subStep: number) => void;
   isSubmitting?: boolean;
+  /** Hide password row when user already authenticated (billing funnel). */
+  hidePasswordRow?: boolean;
 }
 
 const sections = [
@@ -57,6 +59,7 @@ export function ReviewScreen({
   onConfirm,
   onEdit,
   isSubmitting,
+  hidePasswordRow = false,
 }: ReviewScreenProps) {
   return (
     <motion.div
@@ -101,6 +104,7 @@ export function ReviewScreen({
               </p>
               <div className="bg-gray-50/70 rounded-2xl border border-gray-100 overflow-hidden divide-y divide-gray-100">
                 {section.fields.map((field) => {
+                  if (hidePasswordRow && field.key === "password") return null;
                   const value = formData[field.key as keyof FormData];
                   const isEmpty = !value.trim();
                   const Icon = field.icon;

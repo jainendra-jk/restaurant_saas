@@ -12,6 +12,19 @@ export interface AnalyticsSnapshot {
   revenueTrend: RevenueTrendPoint[];
 }
 
+export interface HourlyAnalyticsSnapshot {
+  mostOrderedDish: string;
+  peakHours: string;
+  ordersPerHour: OrdersPerHourPoint[];
+  revenueTrend: RevenueTrendPoint[];
+  capturedAt: string | null;
+}
+
+export interface LiveTodayMetrics {
+  totalOrdersToday: number;
+  revenueToday: number;
+}
+
 function startOfLocalDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
 }
@@ -63,6 +76,8 @@ type DbOrderItemRow = {
   display_name: string;
   quantity: number | string | null;
 };
+
+const MOST_ORDERED_MAX_ORDER_IDS = 300;
 
 /** Compute snapshot for current restaurant in browser-local timezone. */
 export async function fetchAnalyticsSnapshot(
@@ -119,12 +134,15 @@ export async function fetchAnalyticsSnapshot(
   const peakHours = formatHourRange(bestStart, bestStart + 2);
 
   // Most ordered dish (today, across all statuses) by sum(quantity) from order_items
-  const orderIds = todayOrders.map((o) => o.id).filter(Boolean);
+  const orderIds = todayOrders
+    .map((o) => o.id)
+    .filter(Boolean)
+    .slice(-MOST_ORDERED_MAX_ORDER_IDS);
   let mostOrderedDish = '-';
   if (orderIds.length) {
     // Supabase has practical limits for large IN lists; chunk defensively.
     const counts = new Map<string, number>();
-    const chunkSize = 200;
+    const chunkSize = 500;
     for (let i = 0; i < orderIds.length; i += chunkSize) {
       const chunk = orderIds.slice(i, i + chunkSize);
       const { data: itemsRaw, error: itemsErr } = await supabase
@@ -182,3 +200,74 @@ export async function fetchAnalyticsSnapshot(
   };
 }
 
+export async function fetchLiveTodayMetrics(
+  supabase: SupabaseClient,
+  restaurantId: string,
+  now = new Date()
+): Promise<LiveTodayMetrics> {
+  const todayStart = startOfLocalDay(now);
+  const todayEnd = addDays(todayStart, 1);
+  const { data: todayOrdersRaw, error: todayErr } = await supabase
+    .from('orders')
+    .select('status, total, placed_at')
+    .eq('restaurant_id', restaurantId)
+    .gte('placed_at', todayStart.toISOString())
+    .lt('placed_at', todayEnd.toISOString());
+  if (todayErr) throw todayErr;
+  const todayOrders = (todayOrdersRaw ?? []) as Array<{
+    status: string;
+    total: number | string | null;
+  }>;
+  const totalOrdersToday = todayOrders.length;
+  const revenueToday = Math.round(
+    sumBy(todayOrders, (o) => (o.status === 'served' ? clampNumber(o.total) : 0))
+  );
+  return { totalOrdersToday, revenueToday };
+}
+
+export async function fetchHourlyAnalyticsSnapshot(
+  supabase: SupabaseClient,
+  restaurantId: string,
+  now = new Date()
+): Promise<HourlyAnalyticsSnapshot> {
+  try {
+    const { data, error } = await supabase
+      .from('analytics_snapshots')
+      .select('most_ordered_dish, peak_hours, orders_per_hour, revenue_trend, captured_at')
+      .eq('restaurant_id', restaurantId)
+      .order('captured_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    if (error) throw error;
+    if (data) {
+      return {
+        mostOrderedDish:
+          typeof data.most_ordered_dish === 'string' && data.most_ordered_dish.trim()
+            ? data.most_ordered_dish.trim()
+            : '-',
+        peakHours:
+          typeof data.peak_hours === 'string' && data.peak_hours.trim()
+            ? data.peak_hours.trim()
+            : '-',
+        ordersPerHour: Array.isArray(data.orders_per_hour)
+          ? (data.orders_per_hour as OrdersPerHourPoint[])
+          : [],
+        revenueTrend: Array.isArray(data.revenue_trend)
+          ? (data.revenue_trend as RevenueTrendPoint[])
+          : [],
+        capturedAt: typeof data.captured_at === 'string' ? data.captured_at : null,
+      };
+    }
+  } catch {
+    // Fallback below when table is not present or read fails.
+  }
+
+  const computed = await fetchAnalyticsSnapshot(supabase, restaurantId, now);
+  return {
+    mostOrderedDish: computed.mostOrderedDish,
+    peakHours: computed.peakHours,
+    ordersPerHour: computed.ordersPerHour,
+    revenueTrend: computed.revenueTrend,
+    capturedAt: now.toISOString(),
+  };
+}

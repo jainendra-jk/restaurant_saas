@@ -2,77 +2,47 @@ import { createClient } from '@supabase/supabase-js';
 
 const url = import.meta.env.VITE_SUPABASE_URL;
 const anonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
 const REMEMBER_ME_STORAGE_KEY = 'admin_remember_me';
 
-let usePersistentCookie =
-  typeof window !== 'undefined'
-    ? window.localStorage.getItem(REMEMBER_ME_STORAGE_KEY) === 'true'
-    : false;
-
-function baseCookieAttributes(): string {
-  const secure = typeof window !== 'undefined' && window.location.protocol === 'https:'
-    ? '; Secure'
-    : '';
-  return `Path=/; SameSite=Lax${secure}`;
-}
-
-function setCookie(name: string, value: string, persistent: boolean): void {
-  if (typeof document === 'undefined') return;
-  const encoded = encodeURIComponent(value);
-  const maxAge = persistent ? '; Max-Age=31536000' : '';
-  document.cookie = `${name}=${encoded}; ${baseCookieAttributes()}${maxAge}`;
-}
-
-function readCookie(name: string): string | null {
-  if (typeof document === 'undefined') return null;
-  const prefix = `${name}=`;
-  const parts = document.cookie ? document.cookie.split('; ') : [];
-  for (const part of parts) {
-    if (!part.startsWith(prefix)) continue;
-    const raw = part.slice(prefix.length);
-    try {
-      return decodeURIComponent(raw);
-    } catch {
-      return raw;
-    }
-  }
-  return null;
-}
-
-function clearCookie(name: string): void {
-  if (typeof document === 'undefined') return;
-  document.cookie = `${name}=; ${baseCookieAttributes()}; Max-Age=0`;
-}
-
-const cookieStorage: Storage = {
-  getItem: (key: string) => readCookie(key),
-  setItem: (key: string, value: string) => setCookie(key, value, usePersistentCookie),
-  removeItem: (key: string) => clearCookie(key),
-  clear: () => {},
-  key: () => null,
-  get length() {
-    return 0;
-  },
-};
-
-export function setRememberMeCookieMode(rememberMe: boolean): void {
-  usePersistentCookie = rememberMe;
+/**
+ * Persists the "Remember me" checkbox for the login UI (and related UX like last email).
+ * Auth session uses the Supabase default (localStorage), same as the marketing app.
+ */
+export function setRememberMePreference(rememberMe: boolean): void {
   if (typeof window !== 'undefined') {
     window.localStorage.setItem(REMEMBER_ME_STORAGE_KEY, rememberMe ? 'true' : 'false');
   }
 }
 
-export function getRememberMeCookieMode(): boolean {
-  return usePersistentCookie;
+export function getRememberMePreference(): boolean {
+  if (typeof window === 'undefined') return false;
+  return window.localStorage.getItem(REMEMBER_ME_STORAGE_KEY) === 'true';
 }
 
-export const supabase = url && anonKey
-  ? createClient(url, anonKey, {
-      auth: {
-        persistSession: true,
-        storage: cookieStorage,
-      },
-    })
-  : null;
+export const supabase = url && anonKey ? createClient(url, anonKey) : null;
 
 export const hasSupabase = !!supabase;
+
+/**
+ * Handles OAuth callback tokens returned in URL hash by setting Supabase session,
+ * then cleans hash to avoid leaking tokens in the address bar.
+ */
+export async function consumeAuthHandoffFromHash(): Promise<void> {
+  if (!supabase || typeof window === 'undefined') return;
+  const raw = window.location.hash?.replace(/^#/, '').trim();
+  if (!raw) return;
+
+  const params = new URLSearchParams(raw);
+  const access_token = params.get('access_token');
+  const refresh_token = params.get('refresh_token');
+  if (!access_token || !refresh_token) return;
+
+  const { error } = await supabase.auth.setSession({ access_token, refresh_token });
+  if (error) {
+    console.warn('Admin auth handoff failed:', error.message);
+    return;
+  }
+
+  window.history.replaceState(null, '', window.location.pathname + window.location.search);
+}

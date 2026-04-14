@@ -107,6 +107,8 @@ interface ShopClosedStateProps {
   lastClosedText?: string;
   /** e.g. "Tomorrow, 11:00 AM" from profile openingTime */
   nextOpeningText?: string;
+  notificationsText?: string;
+  todaySummaryText?: string;
 }
 
 export function ShopClosedState({
@@ -114,6 +116,8 @@ export function ShopClosedState({
   onOpenShop,
   lastClosedText,
   nextOpeningText,
+  notificationsText,
+  todaySummaryText,
 }: ShopClosedStateProps) {
   return (
     <div className="flex flex-col items-center justify-center min-h-[calc(100vh-160px)] px-4 relative">
@@ -159,15 +163,15 @@ export function ShopClosedState({
           />
           <QuickInfoCard
             icon={Bell}
-            label="Pending Alerts"
-            value="No new notifications"
+            label="Notifications"
+            value={notificationsText ?? '0 new'}
             color="text-[var(--stat-popular)]"
             bg="bg-[var(--stat-popular-light)]"
           />
           <QuickInfoCard
             icon={Moon}
             label="Today's Summary"
-            value="47 orders · ₹12,450"
+            value={todaySummaryText ?? 'No data available'}
             color="text-amber-600"
             bg="bg-amber-50"
           />
