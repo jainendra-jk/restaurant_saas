@@ -18,6 +18,7 @@ const PLANS = [
       "Email support",
       "1 location",
       "10MB menu PDF upload",
+      "Upto 30 pages menu",
       "No domain needed",
       "Bill generation",
       "Receipt for kitchen",
@@ -36,8 +37,10 @@ const PLANS = [
       "Advanced analytics",
       "Priority support",
       "Custom branding",
+      "Upto 60 pages menu",
       "Payment integration",
       "Up to 5 locations",
+      
     ],
     highlighted: true,
   },
