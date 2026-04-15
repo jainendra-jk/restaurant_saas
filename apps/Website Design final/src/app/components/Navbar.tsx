@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { Menu, X } from "lucide-react";
+import ratolabsLogo from "../../assets/ratolabs_logo.svg";
+import ratolabsWordmark from "../../assets/ratolabs_wordmark.svg";
 import { motion, AnimatePresence } from "motion/react";
 import { useNavigate } from "react-router";
 import { useWebsiteAuth } from "../context/WebsiteAuthContext";
@@ -64,12 +66,8 @@ export function Navbar() {
       >
         {/* Logo */}
         <a href="#" className="flex items-center gap-2 shrink-0">
-          <div className="w-8 h-8 rounded-lg bg-[#f97316] flex items-center justify-center">
-            <span className="text-white" style={{ fontSize: 16, fontWeight: 800 }}>Q</span>
-          </div>
-          <span style={{ fontSize: 18, fontWeight: 700 }} className="text-gray-900">
-            QResto
-          </span>
+          <img src={ratolabsLogo} alt="Ratolabs" width={32} height={32} />
+          <img src={ratolabsWordmark} alt="" aria-hidden={true} height={14} />
         </a>
 
         {/* Desktop links */}

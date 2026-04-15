@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router";
+import ratolabsLogo from "../../../assets/ratolabs_logo.svg";
+import ratolabsWordmark from "../../../assets/ratolabs_wordmark.svg";
 import {
   LayoutDashboard,
   UtensilsCrossed,
@@ -52,10 +54,8 @@ export function DashboardLayout() {
     <div className={`flex flex-col h-full ${mobile ? "" : ""}`}>
       {/* Logo */}
       <div className="flex items-center gap-2 px-5 py-5 border-b border-gray-100">
-        <div className="w-8 h-8 rounded-lg bg-[#f97316] flex items-center justify-center">
-          <span className="text-white" style={{ fontSize: 16, fontWeight: 800 }}>Q</span>
-        </div>
-        <span style={{ fontSize: 18, fontWeight: 700 }} className="text-gray-900">QResto</span>
+        <img src={ratolabsLogo} alt="Ratolabs" width={32} height={32} />
+        <img src={ratolabsWordmark} alt="" aria-hidden={true} height={14} />
       </div>
 
       {/* Nav */}

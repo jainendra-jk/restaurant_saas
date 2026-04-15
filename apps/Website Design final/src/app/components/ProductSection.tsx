@@ -71,7 +71,7 @@ export function ProductSection() {
               Digital tools that power your restaurant
             </h2>
             <p className="text-gray-500 max-w-lg mx-auto" style={{ fontSize: 13, lineHeight: 1.7 }}>
-              From smart menus to AI chatbots — explore the suite of products built to modernize hospitality.
+              From smart menus to interactive wedding plate builders — explore the suite of products built to modernize hospitality.
             </p>
           </motion.div>
         </div>
@@ -137,7 +137,7 @@ export function ProductSection() {
                 </div>
                 <div>
                   <div className="text-gray-900" style={{ fontSize: 11, fontWeight: 700 }}>{product.badge}</div>
-                  <div className="text-gray-400" style={{ fontSize: 10 }}>QResto Product</div>
+                  <div className="text-gray-400" style={{ fontSize: 10 }}>Ratolabs Product</div>
                 </div>
               </motion.div>
             </div>

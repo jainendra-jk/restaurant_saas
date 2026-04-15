@@ -1,5 +1,8 @@
 import { useState, useCallback, useEffect, useRef, useMemo, type FormEvent } from "react";
 import { AnimatePresence, motion } from "motion/react";
+import ratolabsLogo from "../../assets/ratolabs_logo.svg";
+import ratolabsLogo40 from "../../assets/ratolabs_logo_40.svg";
+import ratolabsWordmark from "../../assets/ratolabs_wordmark.svg";
 import { ProgressBar } from "./ProgressBar";
 import { InputCard } from "./InputCard";
 import { MenuUpload, type MenuImportStatus } from "./MenuUpload";
@@ -25,7 +28,7 @@ import {
 } from "@restaurant-saas/api-client";
 import { downloadOnboardingWelcomePdf } from "../utils/onboardingWelcomePdf";
 import { supabase } from "../../lib/supabase";
-import { ArrowLeft, UtensilsCrossed, Save } from "lucide-react";
+import { ArrowLeft, Save } from "lucide-react";
 import { toast, Toaster } from "sonner";
 import {
   InputOTP,
@@ -1019,7 +1022,7 @@ export function OnboardingFlow() {
         style={{ background: "linear-gradient(135deg, #fff7ed 0%, #ffffff 50%, #fff1e6 100%)" }}
       >
         <Toaster position="top-center" />
-        <UtensilsCrossed className="w-10 h-10 text-orange-500 mb-4 animate-pulse" />
+        <img src={ratolabsLogo40} alt="Ratolabs" width={40} height={40} className="mb-4 animate-pulse" />
         <p className="text-sm text-gray-500">Verifying your subscription…</p>
       </div>
     );
@@ -1046,15 +1049,8 @@ export function OnboardingFlow() {
           animate={{ y: 0, opacity: 1 }}
           className="flex items-center justify-center gap-2 mb-6"
         >
-          <div
-            className="w-9 h-9 rounded-lg flex items-center justify-center"
-            style={{ backgroundColor: "#f97316" }}
-          >
-            <UtensilsCrossed className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-gray-800 tracking-tight" style={{ fontSize: "1.125rem" }}>
-            Orderly
-          </span>
+          <img src={ratolabsLogo} alt="Ratolabs" width={36} height={36} />
+          <img src={ratolabsWordmark} alt="" aria-hidden={true} height={16} />
         </motion.div>
 
         {/* Card */}
