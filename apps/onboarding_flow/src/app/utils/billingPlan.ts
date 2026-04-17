@@ -13,7 +13,7 @@ export function getMarketingOriginForRedirect(): string {
   const v = typeof raw === "string" ? raw.trim().replace(/\/+$/, "") : "";
   if (v) return v;
   if (import.meta.env.DEV) return "http://localhost:5173";
-  return "http://localhost:5173";
+  return typeof window !== "undefined" ? window.location.origin : "";
 }
 
 export function planToTableCount(plan: UrlBillingPlan): number {

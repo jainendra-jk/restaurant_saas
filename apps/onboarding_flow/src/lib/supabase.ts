@@ -19,8 +19,7 @@ export async function consumeAuthHandoffFromHash(): Promise<void> {
   if (!access_token || !refresh_token) return;
   const { error } = await supabase.auth.setSession({ access_token, refresh_token });
   if (error) {
-    console.warn('Auth handoff failed:', error.message);
-    return;
+    throw new Error(`Auth handoff failed: ${error.message}`);
   }
   window.history.replaceState(null, '', window.location.pathname + window.location.search);
 }
