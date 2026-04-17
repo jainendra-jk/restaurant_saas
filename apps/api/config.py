@@ -5,7 +5,10 @@ from dotenv import load_dotenv
 from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-_repo_root = Path(__file__).resolve().parents[2]
+try:
+    _repo_root = Path(__file__).resolve().parents[2]
+except IndexError:
+    _repo_root = Path(__file__).resolve().parent
 load_dotenv(_repo_root / ".env")
 
 
