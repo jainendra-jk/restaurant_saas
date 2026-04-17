@@ -46,8 +46,9 @@ export function BillingReturnPage() {
     let cancelled = false;
 
     async function run() {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session?.access_token || !session.refresh_token) {
+      // Read session early only to get the user id for entitlement polling.
+      const { data: { session: initialSession } } = await supabase.auth.getSession();
+      if (!initialSession?.user.id) {
         setError("Your session expired. Sign in again to continue setup.");
         return;
       }
@@ -59,7 +60,7 @@ export function BillingReturnPage() {
         const { data } = await supabase
           .from("saas_entitlements")
           .select("plan_tier,status")
-          .eq("user_id", session.user.id)
+          .eq("user_id", initialSession.user.id)
           .maybeSingle();
         ent = data ?? null;
         if (isActiveEntitlement(ent, plan!)) break;
@@ -75,13 +76,24 @@ export function BillingReturnPage() {
         return;
       }
 
+      // Re-fetch the session right before redirecting so the tokens are as
+      // fresh as possible — the access token may have been silently refreshed
+      // during the entitlement polling window above.
+      const { data: { session: freshSession } } = await supabase.auth.getSession();
+      if (!freshSession?.access_token || !freshSession.refresh_token) {
+        setError("Your session expired during setup. Please sign in again.");
+        return;
+      }
+
+      if (cancelled) return;
+
       setMessage("Opening onboarding…");
       const onboarding = getOnboardingHref().replace(/\/+$/, "");
       const handoff = new URLSearchParams({
-        access_token: session.access_token,
-        refresh_token: session.refresh_token,
+        access_token: freshSession.access_token,
+        refresh_token: freshSession.refresh_token,
         token_type: "bearer",
-        expires_in: String(session.expires_in ?? 3600),
+        expires_in: String(freshSession.expires_in ?? 3600),
       });
       window.location.href = `${onboarding}/?plan=${plan}&billing=success#${handoff.toString()}`;
     }
