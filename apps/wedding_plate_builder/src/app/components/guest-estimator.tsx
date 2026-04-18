@@ -57,18 +57,18 @@ export function GuestEstimator({ guests, onGuestsChange, plateTotal, itemCount }
               background: `linear-gradient(to right, #f97316 0%, #f97316 ${((guests - 10) / 1990) * 100}%, #e5e7eb ${((guests - 10) / 1990) * 100}%, #e5e7eb 100%)`,
             }}
           />
-          <div className="flex justify-between mt-2 text-xs text-[#9ca3af]">
-            <span>10</span>
-            <span>500</span>
-            <span>1000</span>
-            <span>1500</span>
-            <span>2000</span>
+          <div className="flex justify-between mt-2 text-[#9ca3af]">
+            <span className="text-[10px] sm:text-xs">10</span>
+            <span className="hidden sm:inline text-xs">500</span>
+            <span className="text-[10px] sm:text-xs">1000</span>
+            <span className="hidden sm:inline text-xs">1500</span>
+            <span className="text-[10px] sm:text-xs">2000</span>
           </div>
         </div>
       </div>
 
       {/* Estimate Cards */}
-      <div className="grid grid-cols-3 gap-4 mt-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mt-4">
         <div
           className="rounded-2xl p-5 border border-[#e5e7eb] bg-white"
           style={{ boxShadow: '0 2px 12px rgba(0,0,0,0.04)' }}

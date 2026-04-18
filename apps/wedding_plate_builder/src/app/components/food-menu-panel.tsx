@@ -91,7 +91,7 @@ export function FoodMenuPanel({ selectedItems, onAddItem, onRemoveItem }: FoodMe
                   </div>
 
                   <span
-                    className="text-sm transition-colors"
+                    className="text-sm truncate max-w-[120px] sm:max-w-none transition-colors"
                     style={{ color: isExpanded || hasSelection ? '#111827' : '#374151' }}
                   >
                     {cat.name}

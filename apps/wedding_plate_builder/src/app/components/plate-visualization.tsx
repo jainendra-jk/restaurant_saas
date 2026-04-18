@@ -40,7 +40,7 @@ export function PlateVisualization({ selectedItems }: PlateVisualizationProps) {
         {hasItems ? `${selectedItems.size} items selected` : 'Add items to build your plate'}
       </p>
 
-      <div className="relative w-[320px] h-[320px] md:w-[340px] md:h-[340px] lg:w-[380px] lg:h-[380px]">
+      <div className="relative w-[min(320px,calc(100vw-3rem))] h-[min(320px,calc(100vw-3rem))] md:w-[340px] md:h-[340px] lg:w-[380px] lg:h-[380px]">
         {/* Outer plate ring — orange-gold gradient */}
         <div
           className="absolute inset-0 rounded-full"

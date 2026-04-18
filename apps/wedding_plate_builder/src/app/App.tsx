@@ -90,12 +90,12 @@ export default function App() {
         fontFamily: "'DM Sans', sans-serif",
       }}
     >
-      <div className="max-w-[1440px] mx-auto px-6 py-4">
+      <div className="max-w-[1440px] mx-auto px-3 sm:px-6 py-4">
         {/* Header */}
-        <header className="flex items-center justify-between mb-5">
+        <header className="flex flex-wrap items-center justify-between gap-2 mb-5">
           <div className="flex items-center gap-3">
             <div
-              className="w-11 h-11 rounded-xl flex items-center justify-center"
+              className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
               style={{
                 background: 'linear-gradient(135deg, #f97316, #ea580c)',
                 boxShadow: '0 4px 12px rgba(249, 115, 22, 0.35)',
@@ -110,19 +110,19 @@ export default function App() {
               >
                 Wedding Plate Builder
               </h1>
-              <p className="text-xs text-[#6b7280] -mt-1">
+              <p className="hidden sm:block text-xs text-[#6b7280] -mt-1">
                 Craft the perfect wedding thali for your guests
               </p>
             </div>
           </div>
-          <div className="flex items-center gap-3">
-            <div className="px-4 py-2 rounded-xl bg-white border border-[#e5e7eb] text-sm text-[#6b7280]">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="px-3 sm:px-4 py-2 rounded-xl bg-white border border-[#e5e7eb] text-xs sm:text-sm text-[#6b7280] whitespace-nowrap">
               {selectedItems.size} items · ₹{Math.round(plateTotal * 1.1)}/plate
             </div>
             <button
               type="button"
               onClick={() => setIsQuoteModalOpen(true)}
-              className="px-5 py-2 rounded-xl text-sm text-white transition-all hover:opacity-90 inline-flex items-center justify-center"
+              className="px-4 sm:px-5 py-2 rounded-xl text-sm text-white transition-all hover:opacity-90 inline-flex items-center justify-center whitespace-nowrap"
               style={{
                 background: 'linear-gradient(135deg, #f97316, #ea580c)',
                 boxShadow: '0 4px 12px rgba(249, 115, 22, 0.3)',
