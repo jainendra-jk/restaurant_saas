@@ -25,8 +25,8 @@ function row(label: string, value: string | undefined): string {
   if (!value?.trim()) return "";
   return `
     <tr>
-      <td style="padding:10px 16px;font-size:13px;color:#6b7280;font-weight:600;white-space:nowrap;width:160px;vertical-align:top;">${label}</td>
-      <td style="padding:10px 16px;font-size:14px;color:#111827;vertical-align:top;word-break:break-word;">${value}</td>
+      <td class="row-label" style="padding:10px 12px;font-size:12px;color:#6b7280;font-weight:600;white-space:nowrap;width:38%;vertical-align:top;">${label}</td>
+      <td class="row-value" style="padding:10px 12px;font-size:13px;color:#111827;vertical-align:top;word-break:break-word;width:62%;">${value}</td>
     </tr>`;
 }
 
@@ -54,8 +54,8 @@ function buildHtml(body: WelcomeEmailBody): string {
   const dashboardBtn = dashboardUrl
     ? `
     <tr>
-      <td align="center" style="padding:32px 0 8px;">
-        <a href="${dashboardUrl}"
+      <td class="cta-td" align="center" style="padding:32px 0 8px;">
+        <a href="${dashboardUrl}" class="cta-btn"
           style="display:inline-block;background:#f97316;color:#ffffff;font-size:15px;font-weight:700;text-decoration:none;padding:14px 36px;border-radius:10px;letter-spacing:0.01em;">
           Open Dashboard
         </a>
@@ -69,20 +69,36 @@ function buildHtml(body: WelcomeEmailBody): string {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1.0" />
   <title>Your restaurant is live on Ratolabs</title>
+  <style>
+    @media only screen and (max-width: 480px) {
+      .outer-td { padding: 16px 8px !important; }
+      .card { border-radius: 10px !important; }
+      .header-td { padding: 24px 20px 20px !important; }
+      .header-td h1 { font-size: 20px !important; }
+      .header-td p { font-size: 13px !important; }
+      .details-td { padding: 16px 14px 8px !important; }
+      .row-label { padding: 8px 10px !important; font-size: 11px !important; width: 36% !important; }
+      .row-value { padding: 8px 10px !important; font-size: 12px !important; width: 64% !important; }
+      .cta-td { padding: 20px 0 8px !important; }
+      .cta-btn { padding: 12px 28px !important; font-size: 14px !important; border-radius: 8px !important; }
+      .divider-td { padding: 16px 20px 0 !important; }
+      .footer-td { padding: 16px 20px 24px !important; }
+    }
+  </style>
 </head>
 <body style="margin:0;padding:0;background:#f9fafb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
 
   <!-- Outer wrapper -->
   <table width="100%" cellpadding="0" cellspacing="0" style="background:#f9fafb;padding:32px 16px;">
     <tr>
-      <td align="center">
+      <td class="outer-td" align="center" style="padding:32px 16px;">
 
         <!-- Card -->
-        <table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
+        <table class="card" width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;background:#ffffff;border-radius:16px;overflow:hidden;box-shadow:0 1px 4px rgba(0,0,0,0.08);">
 
           <!-- Orange header banner -->
           <tr>
-            <td style="background:linear-gradient(135deg,#fb923c,#f97316);padding:36px 32px 28px;">
+            <td class="header-td" style="background:linear-gradient(135deg,#fb923c,#f97316);padding:36px 32px 28px;">
               <img src="https://ighjfqgelxjskiltznov.supabase.co/storage/v1/object/public/Assets/logo.png" alt="Ratolabs" width="64" height="64" style="display:block;width:64px;height:64px;object-fit:contain;border-radius:10px;margin-bottom:20px;" />
               <h1 style="margin:0;font-size:24px;font-weight:800;color:#ffffff;line-height:1.25;">Your restaurant is live!</h1>
               <p style="margin:10px 0 0;font-size:14px;color:rgba(255,255,255,0.9);">
@@ -93,7 +109,7 @@ function buildHtml(body: WelcomeEmailBody): string {
 
           <!-- Details section -->
           <tr>
-            <td style="padding:24px 24px 8px;">
+            <td class="details-td" style="padding:24px 24px 8px;">
               <p style="margin:0 0 12px;font-size:11px;font-weight:700;letter-spacing:0.08em;text-transform:uppercase;color:#f97316;">Restaurant Details</p>
               <table width="100%" cellpadding="0" cellspacing="0" style="border-radius:10px;border:1px solid #f3f4f6;overflow:hidden;">
                 ${row("Restaurant", restaurantName)}
@@ -117,14 +133,14 @@ function buildHtml(body: WelcomeEmailBody): string {
 
           <!-- Divider -->
           <tr>
-            <td style="padding:24px 32px 0;">
+            <td class="divider-td" style="padding:24px 32px 0;">
               <hr style="border:none;border-top:1px solid #f3f4f6;margin:0;" />
             </td>
           </tr>
 
           <!-- Footer -->
           <tr>
-            <td style="padding:20px 32px 32px;text-align:center;">
+            <td class="footer-td" style="padding:20px 32px 32px;text-align:center;">
               <p style="margin:0;font-size:12px;color:#9ca3af;line-height:1.6;">
                 This email was sent by <strong style="color:#f97316;">Ratolabs</strong> because you completed restaurant onboarding.<br />
                 If you did not sign up, please ignore this email or contact support.
