@@ -34,7 +34,7 @@ const sections = [
       { key: "restaurantName", label: "Restaurant Name", icon: Store, subStep: 0 },
       { key: "ownerName", label: "Owner Name", icon: User, subStep: 1 },
       { key: "phone", label: "Phone", icon: Phone, subStep: 2 },
-      { key: "email", label: "Email", icon: Mail, subStep: 3 },
+      { key: "email", label: "Email", icon: Mail, subStep: 3, noEdit: true },
       { key: "address", label: "Address", icon: MapPin, subStep: 4 },
       { key: "city", label: "City", icon: Building2, subStep: 5 },
       { key: "state", label: "State", icon: Building2, subStep: 6 },
@@ -47,7 +47,7 @@ const sections = [
     title: "Dashboard Setup",
     step: 2,
     fields: [
-      { key: "tables", label: "Tables", icon: LayoutGrid, subStep: 0 },
+      { key: "tables", label: "Tables", icon: LayoutGrid, subStep: 0, noEdit: true },
       { key: "password", label: "Password", icon: Lock, subStep: 1 },
     ],
   },
@@ -129,12 +129,14 @@ export function ReviewScreen({
                             : value || "—"}
                         </p>
                       </div>
-                      <button
-                        onClick={() => onEdit(section.step, field.subStep)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-300 hover:text-orange-500 hover:bg-orange-50 transition-all duration-200 opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
-                      >
-                        <Pencil className="w-3.5 h-3.5" />
-                      </button>
+                      {!field.noEdit && (
+                        <button
+                          onClick={() => onEdit(section.step, field.subStep)}
+                          className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-300 hover:text-orange-500 hover:bg-orange-50 transition-all duration-200 opacity-0 group-hover:opacity-100 cursor-pointer shrink-0"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
                   );
                 })}

@@ -161,7 +161,7 @@ export function Tables() {
       }
 
       if (success === 0) {
-        toast.error('Could not prepare any QR PNGs for download.');
+        toast.error('Could not prepare any QR PNGs for download.', { closeButton: false });
         return;
       }
 
@@ -170,13 +170,13 @@ export function Tables() {
       saveAs(zipBlob, fileName);
 
       if (failed > 0) {
-        toast.warning(`Downloaded ${success} QR codes, ${failed} failed.`);
+        toast.warning(`Downloaded ${success} QR codes, ${failed} failed.`, { closeButton: false });
       } else {
-        toast.success(`Downloaded ${success} QR codes as ZIP.`);
+        toast.success(`Downloaded ${success} QR codes as ZIP.`, { closeButton: false });
       }
     } catch (err) {
       console.error('Failed to download QR ZIP', err);
-      toast.error('Unable to download QR ZIP right now.');
+      toast.error('Unable to download QR ZIP right now.', { closeButton: false });
     } finally {
       setDownloadingAllQrs(false);
       setShowDownloadAllQrOverlay(false);
