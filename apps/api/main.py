@@ -6,7 +6,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from config import settings
 from routers import auth, menu, qr
 
-app = FastAPI(title="Restaurant SaaS API", version="1.0.0")
+_docs = "/docs" if settings.api_enable_docs else None
+app = FastAPI(
+    title="Restaurant SaaS API",
+    version="1.0.0",
+    docs_url=_docs,
+    redoc_url=_docs,
+    openapi_url=_docs,
+)
 
 app.add_middleware(
     CORSMiddleware,

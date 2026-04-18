@@ -23,6 +23,7 @@ class Settings(BaseSettings):
     supabase_service_role_key: str = Field(default="", validation_alias="SUPABASE_SERVICE_ROLE_KEY")
     customer_app_origin: str = Field(default="", validation_alias="CUSTOMER_APP_ORIGIN")
     api_port: int = Field(default=8000, validation_alias="API_PORT")
+    api_enable_docs: bool = Field(default=True, validation_alias="API_ENABLE_DOCS")
     api_cors_origins: str = Field(default="", validation_alias="API_CORS_ORIGINS")
     menu_extract_max_concurrent_pages: int = Field(
         default=3,
