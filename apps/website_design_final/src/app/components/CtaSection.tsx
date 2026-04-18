@@ -25,7 +25,7 @@ export function CtaSection() {
             className="text-white/80 mb-8 max-w-lg mx-auto relative z-10"
             style={{ fontSize: 13, lineHeight: 1.7 }}
           >
-            Join thousands of restaurants already using QResto to delight their customers.
+            Join thousands of restaurants already using Ratolabs to delight their customers.
           </p>
           <a
             href="#pricing"

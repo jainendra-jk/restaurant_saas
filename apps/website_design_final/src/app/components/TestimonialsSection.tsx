@@ -9,7 +9,7 @@ const testimonials = [
     image:
       "https://images.unsplash.com/photo-1759521296144-fe6f2d2dc769?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxyZXN0YXVyYW50JTIwb3duZXIlMjBjaGVmJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzczNjkxOTQ5fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
     quote:
-      "QResto completely transformed our dining experience. Customers love scanning the QR code and browsing our menu on their phones. We've cut printing costs by 80% and update dishes in real-time.",
+      "Ratolabs completely transformed our dining experience. Customers love scanning the QR code and browsing our menu on their phones. We've cut printing costs by 80% and update dishes in real-time.",
     rating: 5,
   },
   {
@@ -27,7 +27,7 @@ const testimonials = [
     image:
       "https://images.unsplash.com/photo-1635927555397-61831a832086?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxiaXN0cm8lMjBtYW5hZ2VyJTIwbWFuJTIwcHJvZmVzc2lvbmFsJTIwcG9ydHJhaXR8ZW58MXx8fHwxNzczNzY1ODE1fDA&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
     quote:
-      "We switched from paper menus to QResto and never looked back. The personalized branding makes it feel like our own app. Our guests always compliment how modern and sleek the experience is.",
+      "We switched from paper menus to Ratolabs and never looked back. The personalized branding makes it feel like our own app. Our guests always compliment how modern and sleek the experience is.",
     rating: 5,
   },
   {
@@ -45,7 +45,7 @@ const testimonials = [
     image:
       "https://images.unsplash.com/photo-1740990620245-33a275e53d30?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3Nzg4Nzd8MHwxfHNlYXJjaHwxfHxhc2lhbiUyMG1hbiUyMGNoZWYlMjByZXN0YXVyYW50JTIwcHJvZmVzc2lvbmFsfGVufDF8fHx8MTc3Mzc2NTk3M3ww&ixlib=rb-4.1.0&q=80&w=1080&utm_source=figma&utm_medium=referral",
     quote:
-      "QResto's analytics showed us our best-selling bowls and helped us optimize the menu. Setup took minutes, support is top-notch, and our customers love the seamless digital ordering flow.",
+      "Ratolabs's analytics showed us our best-selling bowls and helped us optimize the menu. Setup took minutes, support is top-notch, and our customers love the seamless digital ordering flow.",
     rating: 5,
   },
 ];
@@ -100,7 +100,7 @@ export function TestimonialsSection() {
               className="text-gray-500 max-w-xl"
               style={{ fontSize: 17, lineHeight: 1.7 }}
             >
-              See why hundreds of restaurants trust QResto to power their digital
+              See why hundreds of restaurants trust Ratolabs to power their digital
               menu experience.
             </p>
           </div>

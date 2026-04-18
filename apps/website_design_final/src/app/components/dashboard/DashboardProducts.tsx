@@ -35,7 +35,7 @@ const DIGITAL_PRODUCTS: DigitalProduct[] = [
     price: websitePlanPrice,
     image: "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?w=400&h=300&fit=crop",
     description:
-      "Full QResto website and subscription access: QR menu, dashboard setup, and core restaurant tools.",
+      "Full Ratolabs website and subscription access: QR menu, dashboard setup, and core restaurant tools.",
     rating: 4.9,
     reviews: 324,
     features: ["Digital QR menu", "Dashboard setup", "Billing & plans"],

@@ -142,7 +142,7 @@ export function LoginDialog({ open, onOpenChange }: LoginDialogProps) {
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md bg-white border-gray-200">
         <DialogHeader>
-          <DialogTitle className="text-gray-900">Log in to QResto</DialogTitle>
+          <DialogTitle className="text-gray-900">Log in to Ratolabs</DialogTitle>
           <DialogDescription className="text-gray-500">
             Use your account to access the dashboard.
           </DialogDescription>

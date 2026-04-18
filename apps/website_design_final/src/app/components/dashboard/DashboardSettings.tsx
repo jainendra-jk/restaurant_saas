@@ -599,7 +599,7 @@ export function DashboardSettings() {
                   Marketing emails
                 </p>
                 <p className="text-gray-400 mt-0.5" style={{ fontSize: 11 }}>
-                  Tips and updates from QResto (manage via email preferences).
+                  Tips and updates from Ratolabs (manage via email preferences).
                 </p>
               </div>
               <NotificationToggle

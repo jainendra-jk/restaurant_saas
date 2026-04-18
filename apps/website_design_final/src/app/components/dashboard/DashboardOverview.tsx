@@ -146,7 +146,7 @@ export function DashboardOverview() {
           Welcome back, {welcomeName}
         </h1>
         <p className="text-gray-400" style={{ fontSize: 13 }}>
-          Live snapshot of your restaurant on QResto.
+          Live snapshot of your restaurant on Ratolabs.
         </p>
         {error && <p className="text-red-600 text-sm mt-2">{error}</p>}
         {dataLoading && !stats && <p className="text-gray-400 text-sm mt-2">Loading stats…</p>}
