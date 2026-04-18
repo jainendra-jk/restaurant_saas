@@ -749,7 +749,7 @@ export function OnboardingFlow() {
         setSetupStatusMessage("Sending your welcome email...");
         setSetupProgressPct(98);
         if (supabase) {
-          await supabase.functions.invoke("send-welcome-email", {
+          const { error: emailError } = await supabase.functions.invoke("send-welcome-email", {
             body: {
               restaurantName: formData.restaurantName,
               ownerName: formData.ownerName,
@@ -766,6 +766,10 @@ export function OnboardingFlow() {
               adminDashboardOrigin: import.meta.env.VITE_ADMIN_DASHBOARD_ORIGIN ?? "",
             },
           });
+          if (emailError) {
+            console.error("Welcome email failed:", emailError);
+            toast.error("Welcome email could not be sent. Check Supabase function logs.");
+          }
         }
       } catch (e) {
         console.error(e);
