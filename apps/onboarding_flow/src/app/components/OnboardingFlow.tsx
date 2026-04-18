@@ -24,9 +24,8 @@ import {
   extractMenuFromPdf,
   generateTableQr,
   replaceMenuFromExtract,
-  type QrTableEntry,
 } from "@restaurant-saas/api-client";
-import { downloadOnboardingWelcomePdf } from "../utils/onboardingWelcomePdf";
+
 import { supabase } from "../../lib/supabase";
 import { ArrowLeft, Save } from "lucide-react";
 import { toast, Toaster } from "sonner";
@@ -618,7 +617,6 @@ export function OnboardingFlow() {
       urlBillingPlan != null
         ? planToTableCount(urlBillingPlan)
         : Math.min(50, Math.max(1, parseInt(formData.tables, 10) || 5));
-    let qrTablesForPdf: QrTableEntry[] = [];
     let restaurantSlugForPdf: string | undefined;
 
     let accessToken: string | null = null;
@@ -699,7 +697,6 @@ export function OnboardingFlow() {
           { restaurantId: rid, tableCount, origin },
           sessionToken
         );
-        qrTablesForPdf = qrRes.tables;
         restaurantSlugForPdf = qrRes.restaurant_slug;
         setSetupStatusMessage("Generating table QR codes...");
         setSetupProgressPct(90);
@@ -749,18 +746,31 @@ export function OnboardingFlow() {
 
     if (restaurantId) {
       try {
-        setSetupStatusMessage("Preparing your welcome pack...");
+        setSetupStatusMessage("Sending your welcome email...");
         setSetupProgressPct(98);
-        downloadOnboardingWelcomePdf({
-          formData,
-          qrTables: qrTablesForPdf,
-          restaurantSlug: restaurantSlugForPdf,
-          customerAppOrigin: origin,
-        });
+        if (supabase) {
+          await supabase.functions.invoke("send-welcome-email", {
+            body: {
+              restaurantName: formData.restaurantName,
+              ownerName: formData.ownerName,
+              email: formData.email,
+              phone: formData.phone,
+              address: formData.address,
+              city: formData.city,
+              state: formData.state,
+              pincode: formData.pincode,
+              gstNumber: formData.gstNumber,
+              fssaiNumber: formData.fssaiNumber,
+              tables: formData.tables,
+              restaurantSlug: restaurantSlugForPdf,
+              adminDashboardOrigin: import.meta.env.VITE_ADMIN_DASHBOARD_ORIGIN ?? "",
+            },
+          });
+        }
       } catch (e) {
         console.error(e);
         toast.error(
-          e instanceof Error ? e.message : "Could not generate welcome PDF"
+          e instanceof Error ? e.message : "Could not send welcome email"
         );
       }
     }

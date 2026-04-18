@@ -10,3 +10,6 @@ verify_jwt = false
 # Optional / future SaaS billing; not used by create-billing-checkout until Razorpay is re-enabled.
 [functions.razorpay-webhook]
 verify_jwt = false
+
+[functions.send-welcome-email]
+verify_jwt = true
