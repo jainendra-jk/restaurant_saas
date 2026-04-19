@@ -142,6 +142,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const tableNumberByIdRef = useRef<Map<string, number>>(new Map());
   const hasLoadedOnceRef = useRef(false);
   const loadVersionRef = useRef(0);
+  /** Set inside Supabase effect to run debounced/full refresh (e.g. after table status timeout). */
+  const ordersFullRefreshRef = useRef<(() => void) | null>(null);
 
   const setOrders = useCallback((updater: Order[] | ((prev: Order[]) => Order[])) => {
     setOrdersState((prev) => {
@@ -222,27 +224,46 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const TABLE_STATUS_TIMEOUT_MS = 15_000;
       try {
-        await supabase
-          .from('tables')
-          .update({ status })
-          .eq('id', tableId)
-          .eq('restaurant_id', restaurant.id)
-          .throwOnError();
+        const persist = async () => {
+          await supabase
+            .from('tables')
+            .update({ status })
+            .eq('id', tableId)
+            .eq('restaurant_id', restaurant.id)
+            .throwOnError();
 
-        const { data: refreshed } = await supabase
-          .from('tables')
-          .select('id, number, status, seats, order_url, qr_png_base64')
-          .eq('id', tableId)
-          .eq('restaurant_id', restaurant.id)
-          .maybeSingle();
-        if (refreshed) {
-          const mapped = mapDbTable(refreshed);
-          setTablesState((prev) => prev.map((t) => (t.id === tableId ? mapped : t)));
-        }
+          const { data: refreshed } = await supabase
+            .from('tables')
+            .select('id, number, status, seats, order_url, qr_png_base64')
+            .eq('id', tableId)
+            .eq('restaurant_id', restaurant.id)
+            .maybeSingle();
+          if (refreshed) {
+            const mapped = mapDbTable(refreshed);
+            setTablesState((prev) => prev.map((t) => (t.id === tableId ? mapped : t)));
+          }
+        };
+
+        await Promise.race([
+          persist(),
+          new Promise<never>((_, reject) => {
+            window.setTimeout(
+              () => reject(new Error('TABLE_STATUS_TIMEOUT')),
+              TABLE_STATUS_TIMEOUT_MS
+            );
+          }),
+        ]);
       } catch (error) {
-        console.error('Failed to update table status', error);
-        toast.error('Could not update table status. Please retry.');
+        if (error instanceof Error && error.message === 'TABLE_STATUS_TIMEOUT') {
+          console.warn('Table status update timed out; refreshing from server', { tableId });
+          toast.error('Try refreshing for smooth connection.', { closeButton: false });
+          ordersFullRefreshRef.current?.();
+        } else {
+          console.error('Failed to update table status', error);
+          toast.error('Could not update table status. Please retry.');
+        }
       } finally {
         clearPending();
       }
@@ -359,6 +380,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!supabase || !restaurant) {
       loadVersionRef.current += 1;
+      ordersFullRefreshRef.current = null;
       setOrdersState(mockOrders);
       setTablesState(mockTables);
       setInitialLoading(false);
@@ -395,6 +417,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           setTablesState(mappedTables);
           tableNumberByIdRef.current = new Map(mappedTables.map((t) => [t.id, t.number]));
         } else {
+          setTablesState([]);
           tableNumberByIdRef.current = new Map();
         }
 
@@ -459,6 +482,10 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           setRefreshing(false);
         }
       }
+    };
+
+    ordersFullRefreshRef.current = () => {
+      void load('refresh').catch((err) => console.error('Failed to refresh orders/tables', err));
     };
 
     let initialLoadAttemptDone = false;
@@ -672,24 +699,30 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       startPollingFallback('watchdog_timeout');
     }, 5000);
 
-    const scheduleResumeRefresh = () => {
-      if (!initialLoadAttemptDone || document.visibilityState !== 'visible') return;
+    const scheduleDebouncedResumeRefresh = () => {
       if (effectLoadVersion !== loadVersionRef.current) return;
       if (visibilityRefreshTimer) window.clearTimeout(visibilityRefreshTimer);
       visibilityRefreshTimer = window.setTimeout(() => {
         visibilityRefreshTimer = null;
         if (effectLoadVersion !== loadVersionRef.current) return;
+        if (document.visibilityState !== 'visible') return;
         void load('refresh').catch((err) =>
           console.error('Failed to refresh orders/tables on tab visible', err)
         );
       }, 300);
     };
-    const handleResume = () => scheduleResumeRefresh();
+    const handleResume = () => {
+      if (!initialLoadAttemptDone || document.visibilityState !== 'visible') return;
+      if (effectLoadVersion !== loadVersionRef.current) return;
+      setTableStatusPending({});
+      scheduleDebouncedResumeRefresh();
+    };
     window.addEventListener('focus', handleResume);
     document.addEventListener('visibilitychange', handleResume);
 
     return () => {
       loadVersionRef.current += 1;
+      ordersFullRefreshRef.current = null;
       window.removeEventListener('focus', handleResume);
       document.removeEventListener('visibilitychange', handleResume);
       if (visibilityRefreshTimer) {
