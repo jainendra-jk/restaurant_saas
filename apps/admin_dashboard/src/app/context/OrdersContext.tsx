@@ -20,9 +20,13 @@ import {
   type Table,
 } from '../data/mock-data';
 
+export type TableStatusTransition = 'opening' | 'closing';
+
 interface OrdersState {
   orders: Order[];
   tables: Table[];
+  /** While a table status save is in flight (server-first UI). */
+  tableStatusPending: Record<string, TableStatusTransition>;
   initialLoading: boolean;
   refreshing: boolean;
   /** Backward-compatible alias for initialLoading. */
@@ -31,7 +35,7 @@ interface OrdersState {
   setOrders: (updater: Order[] | ((prev: Order[]) => Order[])) => void;
   setTables: (updater: Table[] | ((prev: Table[]) => Table[])) => void;
   updateOrderStatus: (orderNumber: string, newStatus: OrderStatus) => void;
-  updateTableStatus: (tableId: string, status: 'active' | 'inactive') => void;
+  updateTableStatus: (tableId: string, status: 'active' | 'inactive') => Promise<void>;
   updateTableSeats: (tableId: string, seats: number) => void;
   pushNotification: (notification: Omit<AdminNotification, 'id' | 'createdAt' | 'unread'> & { createdAt?: string }, options?: { playSound?: boolean }) => void;
   markAllNotificationsRead: () => void;
@@ -130,6 +134,9 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const [initialLoading, setInitialLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
   const [notifications, setNotifications] = useState<AdminNotification[]>([]);
+  const [tableStatusPending, setTableStatusPending] = useState<
+    Record<string, TableStatusTransition>
+  >({});
   const seenOrderIdsRef = useRef<Set<string>>(new Set());
   const notifiedOrderIdsRef = useRef<Set<string>>(new Set());
   const tableNumberByIdRef = useRef<Map<string, number>>(new Map());
@@ -183,51 +190,61 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   );
 
   const updateTableStatus = useCallback(
-    (tableId: string, status: 'active' | 'inactive') => {
-      let previousStatus: Table['status'] | null = null;
-      setTablesState((prev) => {
-        const current = prev.find((t) => t.id === tableId);
-        previousStatus = current?.status ?? null;
-        const next = prev.map((t) =>
-          t.id === tableId ? { ...t, status } : t
-        );
-        if (!supabase) {
-          mockTables = next;
-          mockEmit();
-        }
-        return next;
-      });
-      if (supabase && restaurant?.id) {
-        void (async () => {
-          try {
-            await supabase
-              .from('tables')
-              .update({ status })
-              .eq('id', tableId)
-              .eq('restaurant_id', restaurant.id)
-              .throwOnError();
+    async (tableId: string, status: 'active' | 'inactive') => {
+      const pending: TableStatusTransition = status === 'active' ? 'opening' : 'closing';
+      setTableStatusPending((prev) => ({ ...prev, [tableId]: pending }));
 
-            // Lightweight consistency refresh for this row.
-            const { data: refreshed } = await supabase
-              .from('tables')
-              .select('id, number, status, seats, order_url, qr_png_base64')
-              .eq('id', tableId)
-              .eq('restaurant_id', restaurant.id)
-              .maybeSingle();
-            if (refreshed) {
-              const mapped = mapDbTable(refreshed);
-              setTablesState((prev) => prev.map((t) => (t.id === tableId ? mapped : t)));
-            }
-          } catch (error) {
-            if (previousStatus) {
-              setTablesState((prev) =>
-                prev.map((t) => (t.id === tableId ? { ...t, status: previousStatus } : t))
-              );
-            }
-            console.error('Failed to update table status', error);
-            toast.error('Could not update table status. Please retry.');
-          }
-        })();
+      const clearPending = () => {
+        setTableStatusPending((prev) => {
+          if (!(tableId in prev)) return prev;
+          const next = { ...prev };
+          delete next[tableId];
+          return next;
+        });
+      };
+
+      if (!supabase) {
+        try {
+          setTablesState((prev) => {
+            const next = prev.map((t) => (t.id === tableId ? { ...t, status } : t));
+            mockTables = next;
+            mockEmit();
+            return next;
+          });
+        } finally {
+          clearPending();
+        }
+        return;
+      }
+
+      if (!restaurant?.id) {
+        clearPending();
+        return;
+      }
+
+      try {
+        await supabase
+          .from('tables')
+          .update({ status })
+          .eq('id', tableId)
+          .eq('restaurant_id', restaurant.id)
+          .throwOnError();
+
+        const { data: refreshed } = await supabase
+          .from('tables')
+          .select('id, number, status, seats, order_url, qr_png_base64')
+          .eq('id', tableId)
+          .eq('restaurant_id', restaurant.id)
+          .maybeSingle();
+        if (refreshed) {
+          const mapped = mapDbTable(refreshed);
+          setTablesState((prev) => prev.map((t) => (t.id === tableId ? mapped : t)));
+        }
+      } catch (error) {
+        console.error('Failed to update table status', error);
+        toast.error('Could not update table status. Please retry.');
+      } finally {
+        clearPending();
       }
     },
     [restaurant?.id]
@@ -444,10 +461,14 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    void load('initial');
+    let initialLoadAttemptDone = false;
+    void load('initial').finally(() => {
+      initialLoadAttemptDone = true;
+    });
 
     let pollInterval: ReturnType<typeof window.setInterval> | null = null;
     let subscribeWatchdog: ReturnType<typeof window.setTimeout> | null = null;
+    let visibilityRefreshTimer: ReturnType<typeof window.setTimeout> | null = null;
     const startPollingFallback = (reason: string) => {
       if (pollInterval) return;
       console.warn('[orders] realtime not subscribed; starting polling fallback', {
@@ -651,8 +672,30 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       startPollingFallback('watchdog_timeout');
     }, 5000);
 
+    const scheduleResumeRefresh = () => {
+      if (!initialLoadAttemptDone || document.visibilityState !== 'visible') return;
+      if (effectLoadVersion !== loadVersionRef.current) return;
+      if (visibilityRefreshTimer) window.clearTimeout(visibilityRefreshTimer);
+      visibilityRefreshTimer = window.setTimeout(() => {
+        visibilityRefreshTimer = null;
+        if (effectLoadVersion !== loadVersionRef.current) return;
+        void load('refresh').catch((err) =>
+          console.error('Failed to refresh orders/tables on tab visible', err)
+        );
+      }, 300);
+    };
+    const handleResume = () => scheduleResumeRefresh();
+    window.addEventListener('focus', handleResume);
+    document.addEventListener('visibilitychange', handleResume);
+
     return () => {
       loadVersionRef.current += 1;
+      window.removeEventListener('focus', handleResume);
+      document.removeEventListener('visibilitychange', handleResume);
+      if (visibilityRefreshTimer) {
+        window.clearTimeout(visibilityRefreshTimer);
+        visibilityRefreshTimer = null;
+      }
       stopPollingFallback();
       if (subscribeWatchdog) window.clearTimeout(subscribeWatchdog);
       sub.unsubscribe();
@@ -662,6 +705,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
   const value: OrdersState = {
     orders,
     tables,
+    tableStatusPending,
     initialLoading,
     refreshing,
     loading: initialLoading,

@@ -19,7 +19,14 @@ import { getCachedQrByTableId, upsertCachedQrEntries } from '../utils/qrLocalCac
 type SliderState = { type: 'orders' | 'qr'; tableNumber: number } | null;
 
 export function Tables() {
-  const { orders, tables, updateTableStatus, updateTableSeats, initialLoading } = useOrders();
+  const {
+    orders,
+    tables,
+    tableStatusPending,
+    updateTableStatus,
+    updateTableSeats,
+    initialLoading,
+  } = useOrders();
   const { profile, saveProfile } = useRestaurantProfile();
   const { restaurant } = useAuth();
   const [slider, setSlider] = useState<SliderState>(null);
@@ -29,7 +36,7 @@ export function Tables() {
   const [downloadingAllQrs, setDownloadingAllQrs] = useState(false);
   const persistedShopOpen = profile?.isOpen ?? restaurant?.isOpen ?? true;
 
-  const handleToggle = (tableId: string) => {
+  const handleToggle = async (tableId: string) => {
     const table = tables.find((t) => t.id === tableId);
     if (!table) return;
 
@@ -39,7 +46,7 @@ export function Tables() {
       return;
     }
 
-    updateTableStatus(tableId, nextStatus);
+    await updateTableStatus(tableId, nextStatus);
   };
 
   const handleUpdateSeats = (tableId: string, newSeatCount: number) => {
@@ -225,6 +232,7 @@ export function Tables() {
           <TableCard
             key={table.id}
             table={table}
+            statusPending={tableStatusPending[table.id] ?? null}
             activeOrderCount={getActiveOrderCount(table.number)}
             onToggle={handleToggle}
             onViewOrders={(num) => handleOpenSlider('orders', num)}

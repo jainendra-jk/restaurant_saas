@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { QrCode, Users, Eye, Pencil } from 'lucide-react';
 import type { Table } from '../data/mock-data';
+import type { TableStatusTransition } from '../context/OrdersContext';
 import { InputModal } from './ui/InputModal';
 
 interface TableCardProps {
   table: Table;
+  /** While parent persists status to the server */
+  statusPending?: TableStatusTransition | null;
   activeOrderCount: number;
   onToggle: (tableId: string) => void;
   onViewOrders: (tableNumber: number) => void;
@@ -16,6 +19,7 @@ interface TableCardProps {
 
 export function TableCard({
   table,
+  statusPending = null,
   activeOrderCount,
   onToggle,
   onViewOrders,
@@ -25,6 +29,7 @@ export function TableCard({
   selectedType,
 }: TableCardProps) {
   const isActive = table.status === 'active';
+  const isStatusBusy = statusPending != null;
   const [isEditingSeats, setIsEditingSeats] = useState(false);
   const [seatsValue, setSeatsValue] = useState(String(table.seats));
   const [seatsError, setSeatsError] = useState<string | undefined>();
@@ -89,11 +94,14 @@ export function TableCard({
 
         {/* Toggle switch: OFF (left) = Inactive, ON (right) = Active */}
         <button
+          type="button"
+          disabled={isStatusBusy}
           onClick={() => onToggle(table.id)}
-          className={`relative w-11 h-6 rounded-full transition-colors duration-300 cursor-pointer shrink-0 ${
-            isActive ? 'bg-table-available' : 'bg-gray-300'
-          }`}
+          className={`relative w-11 h-6 rounded-full transition-colors duration-300 shrink-0 ${
+            isStatusBusy ? 'cursor-not-allowed opacity-70' : 'cursor-pointer'
+          } ${isActive ? 'bg-table-available' : 'bg-gray-300'}`}
           aria-label={isActive ? 'Set table inactive' : 'Set table active'}
+          aria-busy={isStatusBusy}
         >
           <span
             className={`absolute top-1 left-1 w-4 h-4 bg-white rounded-full shadow-sm transition-transform duration-300 ${
@@ -105,7 +113,17 @@ export function TableCard({
 
       {/* Status badge — fixed height row */}
       <div className="h-6 mb-3 flex items-center">
-        {isActive ? (
+        {statusPending === 'closing' ? (
+          <span className="flex items-center gap-1.5 text-xs bg-gray-100 text-gray-500 px-2 py-1 rounded-full w-fit">
+            <span className="w-1.5 h-1.5 rounded-full bg-gray-400 animate-pulse" />
+            Closing…
+          </span>
+        ) : statusPending === 'opening' ? (
+          <span className="flex items-center gap-1.5 text-xs bg-primary/10 text-primary px-2 py-1 rounded-full w-fit">
+            <span className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse" />
+            Opening…
+          </span>
+        ) : isActive ? (
           <span className="flex items-center gap-1.5 text-xs bg-table-available-light text-table-available-text px-2 py-1 rounded-full w-fit">
             <span className="w-1.5 h-1.5 rounded-full bg-table-available" />
             Active
