@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "build": "vite build",
-    "dev": "vite"
+    "dev": "vite",
+    "gen:favicon": "node scripts/gen-favicon.cjs",
+    "prebuild": "node scripts/gen-favicon.cjs"
   },
   "dependencies": {
     "@restaurant-saas/supabase-auth": "workspace:*",
@@ -68,6 +70,7 @@
     "vaul": "1.1.2"
   },
   "devDependencies": {
+    "png-to-ico": "2.1.8",
     "@tailwindcss/vite": "4.1.12",
     "@vitejs/plugin-react": "4.7.0",
     "tailwindcss": "4.1.12",
