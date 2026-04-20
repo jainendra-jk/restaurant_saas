@@ -47,6 +47,7 @@ export const ORDER_STATUS_PRIORITY: Record<string, number> = {
   new: 0,
   preparing: 1,
   served: 2,
+  abandoned: 3,
 };
 
 /** Shared status config for badges, dots, slider labels */
@@ -71,5 +72,11 @@ export const STATUS_CONFIG: Record<
     bg: 'bg-status-served-light',
     text: 'text-status-served-text',
     dot: 'bg-status-served',
+  },
+  abandoned: {
+    label: 'Abandoned',
+    bg: 'bg-gray-100',
+    text: 'text-gray-600',
+    dot: 'bg-gray-400',
   },
 };

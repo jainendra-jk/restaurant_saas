@@ -35,6 +35,8 @@ interface OrdersState {
   setOrders: (updater: Order[] | ((prev: Order[]) => Order[])) => void;
   setTables: (updater: Table[] | ((prev: Table[]) => Table[])) => void;
   updateOrderStatus: (orderNumber: string, newStatus: OrderStatus) => void;
+  hideServedOrders: () => Promise<void>;
+  abandonOrder: (orderNumber: string) => Promise<void>;
   updateTableStatus: (tableId: string, status: 'active' | 'inactive') => Promise<void>;
   updateTableSeats: (tableId: string, seats: number) => void;
   pushNotification: (notification: Omit<AdminNotification, 'id' | 'createdAt' | 'unread'> & { createdAt?: string }, options?: { playSound?: boolean }) => void;
@@ -73,6 +75,8 @@ function mapDbOrder(
     tax: number;
     total: number;
     placed_at: string;
+    is_hidden?: boolean;
+    abandoned_at?: string | null;
     restaurant?: { name?: string };
     order_items?: Array<{
       display_name: string;
@@ -106,6 +110,8 @@ function mapDbOrder(
     subTotal: row.subtotal,
     tax: row.tax,
     total: row.total,
+    isHidden: row.is_hidden ?? false,
+    abandonedAt: row.abandoned_at ?? null,
   };
 }
 
@@ -190,6 +196,52 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     },
     [restaurant?.id]
   );
+
+  const hideServedOrders = useCallback(async () => {
+    if (!supabase) {
+      setOrdersState((prev) => {
+        const next = prev.filter((order) => order.status !== 'served');
+        mockOrders = next;
+        mockEmit();
+        return next;
+      });
+      return;
+    }
+    if (!restaurant?.id) return;
+    await supabase
+      .from('orders')
+      .update({ is_hidden: true })
+      .eq('restaurant_id', restaurant.id)
+      .eq('status', 'served')
+      .eq('is_hidden', false)
+      .throwOnError();
+    setOrdersState((prev) => prev.filter((order) => order.status !== 'served'));
+  }, [restaurant?.id]);
+
+  const abandonOrder = useCallback(async (orderNumber: string) => {
+    if (!supabase) {
+      setOrdersState((prev) => {
+        const next = prev.filter((order) => order.orderNumber !== orderNumber);
+        mockOrders = next;
+        mockEmit();
+        return next;
+      });
+      return;
+    }
+    if (!restaurant?.id) return;
+    await supabase
+      .from('orders')
+      .update({
+        status: 'abandoned',
+        is_hidden: true,
+        abandoned_at: new Date().toISOString(),
+      })
+      .eq('restaurant_id', restaurant.id)
+      .eq('order_number', orderNumber)
+      .eq('is_hidden', false)
+      .throwOnError();
+    setOrdersState((prev) => prev.filter((order) => order.orderNumber !== orderNumber));
+  }, [restaurant?.id]);
 
   const updateTableStatus = useCallback(
     async (tableId: string, status: 'active' | 'inactive') => {
@@ -425,12 +477,13 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           .from('orders')
           .select(
             `
-            id, order_number, table_id, status, customer_name, special_instructions,
+            id, order_number, table_id, status, customer_name, special_instructions, is_hidden, abandoned_at,
             subtotal, tax, total, placed_at,
             order_items (display_name, portion, quantity, unit_price, line_total, selected_option)
           `
           )
           .eq('restaurant_id', restaurant.id)
+          .eq('is_hidden', false)
           .order('placed_at', { ascending: false });
         if (ordErr) throw ordErr;
         if (effectLoadVersion !== loadVersionRef.current) return;
@@ -746,6 +799,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
     setOrders,
     setTables,
     updateOrderStatus,
+    hideServedOrders,
+    abandonOrder,
     updateTableStatus,
     updateTableSeats,
     pushNotification,

@@ -25,6 +25,8 @@ export interface LiveTodayMetrics {
   revenueToday: number;
 }
 
+let analyticsSnapshotsTableAvailable: boolean | null = null;
+
 function startOfLocalDay(d: Date): Date {
   return new Date(d.getFullYear(), d.getMonth(), d.getDate(), 0, 0, 0, 0);
 }
@@ -225,12 +227,38 @@ export async function fetchLiveTodayMetrics(
   return { totalOrdersToday, revenueToday };
 }
 
+export async function fetchRevenueToday(
+  supabase: SupabaseClient,
+  restaurantId: string,
+  now = new Date()
+): Promise<number> {
+  const todayStart = startOfLocalDay(now);
+  const todayEnd = addDays(todayStart, 1);
+  const { data: todayOrdersRaw, error: todayErr } = await supabase
+    .from('orders')
+    .select('status, total')
+    .eq('restaurant_id', restaurantId)
+    .gte('placed_at', todayStart.toISOString())
+    .lt('placed_at', todayEnd.toISOString());
+  if (todayErr) throw todayErr;
+  const todayOrders = (todayOrdersRaw ?? []) as Array<{
+    status: string;
+    total: number | string | null;
+  }>;
+  return Math.round(
+    sumBy(todayOrders, (o) => (o.status === 'served' ? clampNumber(o.total) : 0))
+  );
+}
+
 export async function fetchHourlyAnalyticsSnapshot(
   supabase: SupabaseClient,
   restaurantId: string,
   now = new Date()
 ): Promise<HourlyAnalyticsSnapshot> {
   try {
+    if (analyticsSnapshotsTableAvailable === false) {
+      throw new Error('ANALYTICS_SNAPSHOTS_UNAVAILABLE');
+    }
     const { data, error } = await supabase
       .from('analytics_snapshots')
       .select('most_ordered_dish, peak_hours, orders_per_hour, revenue_trend, captured_at')
@@ -239,6 +267,7 @@ export async function fetchHourlyAnalyticsSnapshot(
       .limit(1)
       .maybeSingle();
     if (error) throw error;
+    analyticsSnapshotsTableAvailable = true;
     if (data) {
       return {
         mostOrderedDish:
@@ -258,7 +287,15 @@ export async function fetchHourlyAnalyticsSnapshot(
         capturedAt: typeof data.captured_at === 'string' ? data.captured_at : null,
       };
     }
-  } catch {
+  } catch (error) {
+    const msg = error instanceof Error ? error.message.toLowerCase() : '';
+    if (
+      msg.includes('analytics_snapshots') ||
+      msg.includes('does not exist') ||
+      msg.includes('could not find the table')
+    ) {
+      analyticsSnapshotsTableAvailable = false;
+    }
     // Fallback below when table is not present or read fails.
   }
 

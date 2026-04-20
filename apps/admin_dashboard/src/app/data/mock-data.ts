@@ -1,6 +1,6 @@
 import type { DietType } from '../types/menu-config';
 
-export type OrderStatus = 'new' | 'preparing' | 'served';
+export type OrderStatus = 'new' | 'preparing' | 'served' | 'abandoned';
 
 export interface OrderLine {
   displayName: string;
@@ -23,6 +23,8 @@ export interface Order {
   subTotal: number;
   tax: number;
   total: number;
+  isHidden?: boolean;
+  abandonedAt?: string | null;
 }
 
 export interface Table {

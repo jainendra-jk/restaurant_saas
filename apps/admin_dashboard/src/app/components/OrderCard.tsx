@@ -15,18 +15,21 @@ const statusBorderColors: Record<OrderStatus, string> = {
   new: 'border-l-status-new',
   preparing: 'border-l-status-preparing',
   served: 'border-l-status-served',
+  abandoned: 'border-l-gray-300',
 };
 
 const nextStatusMap: Record<OrderStatus, OrderStatus | null> = {
   new: 'preparing',
   preparing: 'served',
   served: null,
+  abandoned: null,
 };
 
 const nextStatusLabel: Record<OrderStatus, string> = {
   new: 'Start Preparing',
   preparing: 'Mark Served',
   served: '',
+  abandoned: '',
 };
 
 interface OrderCardProps {
