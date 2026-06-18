@@ -1,9 +1,13 @@
+import { useState } from "react";
 import { motion } from "motion/react";
 import { ArrowRight, Play } from "lucide-react";
 import { ImageWithFallback } from "./figma/ImageWithFallback";
 import { HERO_ALT_IMAGE, HERO_PHONE_IMAGE } from "../assets/images";
+import { DemoVideoDialog } from "./DemoVideoDialog";
 
 export function HeroSection() {
+  const [demoOpen, setDemoOpen] = useState(false);
+
   return (
     <section className="relative overflow-hidden pt-[120px] pb-16 lg:pt-[140px] lg:pb-24">
       {/* Background gradient + blur shapes */}
@@ -51,13 +55,14 @@ export function HeroSection() {
               >
                 Get Started <ArrowRight size={18} />
               </a>
-              <a
-                href="#demo"
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 hover:border-gray-300 px-7 py-3.5 rounded-2xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5"
+                <button
+                type="button"
+                onClick={() => setDemoOpen(true)}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2 bg-white border border-gray-200 text-gray-700 hover:border-gray-300 px-7 py-3.5 rounded-2xl transition-all duration-200 hover:shadow-lg hover:-translate-y-0.5 cursor-pointer"
                 style={{ fontSize: 14, fontWeight: 600 }}
               >
                 <Play size={16} className="text-[#f97316]" /> See Demo
-              </a>
+              </button>
             </div>
 
             {/* Mini stats */}
@@ -125,6 +130,7 @@ export function HeroSection() {
           </motion.div>
         </div>
       </div>
+      <DemoVideoDialog open={demoOpen} onOpenChange={setDemoOpen} />
     </section>
   );
 }
