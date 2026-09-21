@@ -56,7 +56,11 @@ Create `.env.local` in each app directory (or root) as needed. **Never commit se
 | `VITE_API_BASE_URL` | admin | Base URL for `apps/api` (e.g. `http://localhost:8000`) |
 | `GOOGLE_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `CUSTOMER_APP_ORIGIN` | apps/api | Server-side only; see `.env.example` |
 
-**Supabase RLS note:** the customer app reads `restaurants` with the anon key; migration `20240321000003_public_restaurant_select.sql` allows public `SELECT` on `restaurants`, so anyone with the anon key can list restaurant rows—treat the QR URL/slug as the access boundary, or replace with a `SECURITY DEFINER` RPC later for stricter isolation.
+**Supabase RLS notes:**
+
+- The customer app reads `restaurants` with the anon key. `20260408103000_onboarding_security_hardening.sql` narrowed that public `SELECT` to restaurants that have at least one QR-enabled table, but it is still a listable set—treat the QR URL/slug as the access boundary, or move to a slug-scoped `SECURITY DEFINER` RPC for stricter isolation.
+- `20260905000014_orders_anon_read_lockdown.sql` removes the anon `SELECT` policy on `orders` (it previously exposed every tenant's orders to anyone holding the anon key). Checkout now inserts a client-generated order id with `return=minimal`, and `order_items` inserts validate their parent order through the `public.order_accepts_customer_items` `SECURITY DEFINER` helper. **Apply this migration and deploy the customer app together**—an old customer build expects `INSERT ... RETURNING` to work.
+- `tables` still allows anon `SELECT` on any row with a `qr_token`, so table rows (including `qr_token`) remain enumerable with the anon key. Closing that needs a token-scoped RPC for table resolution.
 
 ## Build
 
@@ -90,7 +94,7 @@ On push and pull requests to `main` or `master`, [`.github/workflows/ci.yml`](.g
 
 Use this before calling the stack “done” or after changing Supabase or env:
 
-- [ ] **Migrations:** Apply SQL in `supabase/migrations/` to your Supabase project in filename order (`00000` → `00003`).
+- [ ] **Migrations:** Apply every file in `supabase/migrations/` to your Supabase project in filename order (they are timestamp-prefixed; apply any you have not run yet).
 - [ ] **Env:** Each app that talks to Supabase has `VITE_SUPABASE_URL` and `VITE_SUPABASE_ANON_KEY`; admin has `VITE_CUSTOMER_APP_ORIGIN`; onboarding has `VITE_ADMIN_DASHBOARD_ORIGIN` if you redirect after signup.
 - [ ] **Onboarding → admin:** Complete signup, sign in to the admin dashboard, confirm your restaurant and tables exist.
 - [ ] **Customer / QR:** Open `/order/{restaurant-slug}/table/{n}` (or `/r/{slug}/t/{n}`), confirm menu loads from the DB when configured; place an order and see `orders` / `order_items` in Supabase or in admin live orders.

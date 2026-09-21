@@ -51,7 +51,17 @@ class Settings(BaseSettings):
     )
 
     def cors_list(self) -> List[str]:
+        """Explicit CORS allowlist.
+
+        A bare ``*`` is rejected: the app sends ``allow_credentials=True``, and a
+        wildcard origin combined with credentials is both refused by browsers and
+        an unsafe default for a service that holds the Supabase service-role key.
+        """
         raw = self.api_cors_origins.strip()
+        if raw == "*":
+            raise ValueError(
+                "API_CORS_ORIGINS='*' is not allowed; list the exact app origins."
+            )
         if raw:
             return [o.strip() for o in raw.split(",") if o.strip()]
         return [

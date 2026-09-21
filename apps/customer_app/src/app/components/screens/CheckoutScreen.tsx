@@ -15,6 +15,7 @@ import { computeTaxes } from "../../utils/tax";
 import * as typography from "../../theme/typography";
 import { formatPrice } from "../../utils/formatPrice";
 import { haptics } from "../../utils/haptics";
+import { newOrderId } from "../../utils/orderId";
 import { CheckoutScreenSkeleton } from "../shared/CustomerSkeletons";
 export function CheckoutScreen() {
   const { items, totalPrice, clearCart } = useCart();
@@ -27,25 +28,48 @@ export function CheckoutScreen() {
   const [instructions, setInstructions] = useState("");
   const [isPlacing, setIsPlacing] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [nameError, setNameError] = useState<string | null>(null);
 
-  if (loading) {
-    return <CheckoutScreenSkeleton />;
-  }
+  // Customer name is required (mirrors the DB `orders_customer_name_required`
+  // constraint). Kept in one place so the submit guard and the button-disabled
+  // state agree on what "valid" means.
+  const NAME_MAX_LENGTH = 120;
+  const trimmedName = name.trim();
+  const isNameValid = trimmedName.length > 0 && trimmedName.length <= NAME_MAX_LENGTH;
 
   const tableNo = tableNum ?? 7;
   const taxLines = computeTaxes(totalPrice, taxRules);
   const taxes = taxLines.reduce((sum, t) => sum + t.amount, 0);
   const grandTotal = totalPrice + taxes;
 
+  // Must run before any early return: bailing out above a hook changes the hook
+  // count between renders and makes React throw once `loading` flips to false.
   useEffect(() => {
+    if (loading) return;
     if (items.length === 0 && !isPlacing) {
       navigate(basePath ? `${basePath}/menu` : "/menu", { replace: true } as { replace?: boolean });
     }
-  }, [items.length, isPlacing, navigate, basePath]);
+  }, [loading, items.length, isPlacing, navigate, basePath]);
+
+  if (loading) {
+    return <CheckoutScreenSkeleton />;
+  }
 
   const handlePlaceOrder = async () => {
     haptics.gestureMedium();
     setSubmitError(null);
+    // Enforce the required name before doing any work, so an empty/invalid name
+    // never reaches the insert (the DB constraint is the backstop for direct
+    // API calls; this is the friendly client-side gate).
+    if (!isNameValid) {
+      setNameError(
+        trimmedName.length > NAME_MAX_LENGTH
+          ? `Name must be ${NAME_MAX_LENGTH} characters or fewer.`
+          : "Please enter your name to place the order."
+      );
+      return;
+    }
+    setNameError(null);
     setIsPlacing(true);
     const orderNumber = `${branding.orderNumberPrefix}${Math.floor(1000 + Math.random() * 9000)}`;
     const placedAt = new Date();
@@ -112,24 +136,28 @@ export function CheckoutScreen() {
 
     if (supabase && restaurantId && tableId) {
       try {
-        const { data: orderRow, error: orderErr } = await supabase
+        // The order id is generated here rather than read back from the insert:
+        // `INSERT ... RETURNING` would require an anon SELECT policy on `orders`,
+        // and that policy was the cross-tenant read leak removed in migration
+        // 20260905000014. Inserting with a known id keeps this a single
+        // round-trip and lets the row stay unreadable to the customer role.
+        const orderId = newOrderId();
+        const { error: orderErr } = await supabase
           .from("orders")
           .insert({
+            id: orderId,
             restaurant_id: restaurantId,
             order_number: orderNumber,
             table_id: tableId,
             status: "new",
-            customer_name: name.trim() || null,
+            customer_name: trimmedName,
             special_instructions: instructions.trim() || null,
             subtotal: totalPrice,
             tax: taxes,
             total: grandTotal,
             placed_at: placedAt.toISOString(),
-          })
-          .select("id")
-          .single();
+          });
         if (orderErr) throw orderErr;
-        if (!orderRow?.id) throw new Error("Order was not created");
         const { error: itemsErr } = await supabase.from("order_items").insert(
           items.map((ci) => {
             const unitPrice = getPortionPrice(ci.item, ci.portion);
@@ -138,7 +166,7 @@ export function CheckoutScreen() {
               ? `${ci.item.name} (${ci.selectedOption})`
               : ci.item.name;
             return {
-              order_id: orderRow.id,
+              order_id: orderId,
               display_name: displayName,
               portion: getPortionShort(ci.portion),
               quantity: ci.quantity,
@@ -151,17 +179,11 @@ export function CheckoutScreen() {
         if (itemsErr) throw itemsErr;
         finishSuccess();
       } catch (err) {
+        // Surface a stable customer-facing message; raw Supabase/PostgREST errors
+        // describe RLS policies, column names and constraints, which should not
+        // reach a diner's screen.
         console.error("Failed to submit order:", err);
-        const message =
-          err instanceof Error
-            ? err.message
-            : typeof err === "object" &&
-                err !== null &&
-                "message" in err &&
-                typeof (err as { message: unknown }).message === "string"
-              ? (err as { message: string }).message
-              : "Could not place order. Please try again.";
-        setSubmitError(message);
+        setSubmitError("Could not place order. Please try again.");
         setIsPlacing(false);
       }
     } else {
@@ -286,16 +308,32 @@ export function CheckoutScreen() {
             className="text-foreground/60 tracking-[0.1em] uppercase block mb-2"
             style={typography.bodyLabel}
           >
-            Your Name <span className="normal-case tracking-normal text-muted-foreground/40">(optional)</span>
+            Your Name <span className="normal-case tracking-normal text-primary/70">(required)</span>
           </label>
           <input
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              if (nameError) setNameError(null);
+            }}
             placeholder="Enter your name"
-            className="w-full bg-background rounded-xl px-4 py-3 text-foreground/80 placeholder:text-muted-foreground/30 border border-primary/10 focus:border-primary/30 focus:outline-none transition-colors"
+            required
+            aria-required="true"
+            aria-invalid={nameError ? "true" : undefined}
+            maxLength={NAME_MAX_LENGTH}
+            className={`w-full bg-background rounded-xl px-4 py-3 text-foreground/80 placeholder:text-muted-foreground/30 border focus:outline-none transition-colors ${
+              nameError
+                ? "border-red-300 focus:border-red-400"
+                : "border-primary/10 focus:border-primary/30"
+            }`}
             style={typography.bodyLg}
           />
+          {nameError ? (
+            <p className="mt-2 text-red-600" style={typography.bodyMd} role="alert">
+              {nameError}
+            </p>
+          ) : null}
         </motion.div>
 
         {/* Special instructions */}

@@ -13,6 +13,7 @@ from typing import Any, List, Tuple
 import httpx
 
 from config import settings
+from http_client import get_client, menu_write_timeout
 
 DIETS = frozenset({"veg", "nonveg", "egg", "seafood"})
 VARIANT_TYPES = frozenset({"qtr", "half", "full"})
@@ -207,96 +208,102 @@ async def replace_menu_for_restaurant(restaurant_id: str, menu_payload: dict) ->
 
     headers = _supabase_headers()
 
+    # Shared pooled client (see http_client): the previous per-call AsyncClient
+    # paid a fresh TLS handshake for each of the four Supabase writes below.
+    client = get_client()
     try:
-        async with httpx.AsyncClient(timeout=120.0) as client:
-            # Full replacement semantics: remove existing categories (items cascade-delete), then insert current menu.
-            del_categories = await client.delete(
-                f"{base}/rest/v1/menu_categories",
-                headers={**headers, "Prefer": "return=minimal"},
-                params={"restaurant_id": f"eq.{restaurant_id}"},
-            )
-            _ensure_supabase_success(del_categories, "Delete existing menu categories", (200, 204))
+        # Full replacement semantics: remove existing categories (items cascade-delete), then insert current menu.
+        del_categories = await client.delete(
+            f"{base}/rest/v1/menu_categories",
+            headers={**headers, "Prefer": "return=minimal"},
+            params={"restaurant_id": f"eq.{restaurant_id}"},
+            timeout=menu_write_timeout(),
+        )
+        _ensure_supabase_success(del_categories, "Delete existing menu categories", (200, 204))
 
-            category_rows: list[dict[str, Any]] = []
-            for idx, cat in enumerate(normalized["categories"]):
-                category_rows.append(
+        category_rows: list[dict[str, Any]] = []
+        for idx, cat in enumerate(normalized["categories"]):
+            category_rows.append(
+                {
+                    "restaurant_id": restaurant_id,
+                    "slug": cat["slug"],
+                    "name": cat["name"],
+                    "sort_order": idx,
+                }
+            )
+
+        create_categories = await client.post(
+            f"{base}/rest/v1/menu_categories",
+            headers={**headers, "Prefer": "return=representation"},
+            json=category_rows,
+            timeout=menu_write_timeout(),
+        )
+        _ensure_supabase_success(create_categories, "Insert menu categories", (200, 201))
+
+        created_categories = create_categories.json()
+        if not isinstance(created_categories, list) or not created_categories:
+            raise RuntimeError("Insert menu categories failed: empty response")
+
+        category_id_by_slug: dict[str, str] = {}
+        for row in created_categories:
+            if not isinstance(row, dict):
+                continue
+            slug = str(row.get("slug") or "").strip()
+            cat_id = str(row.get("id") or "").strip()
+            if slug and cat_id:
+                category_id_by_slug[slug] = cat_id
+
+        item_rows: list[dict[str, Any]] = []
+        for cat in normalized["categories"]:
+            cat_slug = cat["slug"]
+            category_id = category_id_by_slug.get(cat_slug)
+            if not category_id:
+                raise RuntimeError(f"Missing created category id for slug: {cat_slug}")
+            for item_idx, it in enumerate(cat["items"]):
+                item_rows.append(
                     {
-                        "restaurant_id": restaurant_id,
-                        "slug": cat["slug"],
-                        "name": cat["name"],
-                        "sort_order": idx,
+                        "category_id": category_id,
+                        "slug": it["slug"],
+                        "name": it["name"],
+                        "diet": it["diet"],
+                        "description": it["description"],
+                        "variants": it["variants"],
+                        "options": it["options"],
+                        "is_available": True,
+                        "sort_order": item_idx,
                     }
                 )
 
-            create_categories = await client.post(
-                f"{base}/rest/v1/menu_categories",
-                headers={**headers, "Prefer": "return=representation"},
-                json=category_rows,
-            )
-            _ensure_supabase_success(create_categories, "Insert menu categories", (200, 201))
+        create_items = await client.post(
+            f"{base}/rest/v1/menu_items",
+            headers={**headers, "Prefer": "return=minimal"},
+            json=item_rows,
+            timeout=menu_write_timeout(),
+        )
+        _ensure_supabase_success(create_items, "Insert menu items", (200, 201, 204))
 
-            created_categories = create_categories.json()
-            if not isinstance(created_categories, list) or not created_categories:
-                raise RuntimeError("Insert menu categories failed: empty response")
+        currency = normalized.get("currency")
+        palette = normalized.get("palette")
+        branding = normalized.get("branding")
+        now_iso = datetime.now(timezone.utc).isoformat()
+        restaurant_patch: dict[str, Any] = {
+            "menu_import_completed_at": now_iso,
+            "onboarding_completed_at": now_iso,
+        }
+        if isinstance(palette, dict) and palette:
+            restaurant_patch["palette"] = palette
+        if isinstance(currency, str) and currency.strip():
+            restaurant_patch["currency"] = currency.strip()
+        if isinstance(branding, dict) and branding:
+            restaurant_patch["branding"] = branding
 
-            category_id_by_slug: dict[str, str] = {}
-            for row in created_categories:
-                if not isinstance(row, dict):
-                    continue
-                slug = str(row.get("slug") or "").strip()
-                cat_id = str(row.get("id") or "").strip()
-                if slug and cat_id:
-                    category_id_by_slug[slug] = cat_id
-
-            item_rows: list[dict[str, Any]] = []
-            for cat in normalized["categories"]:
-                cat_slug = cat["slug"]
-                category_id = category_id_by_slug.get(cat_slug)
-                if not category_id:
-                    raise RuntimeError(f"Missing created category id for slug: {cat_slug}")
-                for item_idx, it in enumerate(cat["items"]):
-                    item_rows.append(
-                        {
-                            "category_id": category_id,
-                            "slug": it["slug"],
-                            "name": it["name"],
-                            "diet": it["diet"],
-                            "description": it["description"],
-                            "variants": it["variants"],
-                            "options": it["options"],
-                            "is_available": True,
-                            "sort_order": item_idx,
-                        }
-                    )
-
-            create_items = await client.post(
-                f"{base}/rest/v1/menu_items",
-                headers={**headers, "Prefer": "return=minimal"},
-                json=item_rows,
-            )
-            _ensure_supabase_success(create_items, "Insert menu items", (200, 201, 204))
-
-            currency = normalized.get("currency")
-            palette = normalized.get("palette")
-            branding = normalized.get("branding")
-            now_iso = datetime.now(timezone.utc).isoformat()
-            restaurant_patch: dict[str, Any] = {
-                "menu_import_completed_at": now_iso,
-                "onboarding_completed_at": now_iso,
-            }
-            if isinstance(palette, dict) and palette:
-                restaurant_patch["palette"] = palette
-            if isinstance(currency, str) and currency.strip():
-                restaurant_patch["currency"] = currency.strip()
-            if isinstance(branding, dict) and branding:
-                restaurant_patch["branding"] = branding
-
-            update_restaurant = await client.patch(
-                f"{base}/rest/v1/restaurants",
-                headers={**headers, "Prefer": "return=minimal"},
-                params={"id": f"eq.{restaurant_id}"},
-                json=restaurant_patch,
-            )
-            _ensure_supabase_success(update_restaurant, "Update restaurant profile fields", (200, 204))
+        update_restaurant = await client.patch(
+            f"{base}/rest/v1/restaurants",
+            headers={**headers, "Prefer": "return=minimal"},
+            params={"id": f"eq.{restaurant_id}"},
+            json=restaurant_patch,
+            timeout=menu_write_timeout(),
+        )
+        _ensure_supabase_success(update_restaurant, "Update restaurant profile fields", (200, 204))
     except httpx.RequestError as e:
         raise RuntimeError(f"Supabase request failed: {e}") from e

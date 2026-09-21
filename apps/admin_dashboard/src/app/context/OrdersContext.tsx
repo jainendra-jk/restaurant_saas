@@ -4,6 +4,7 @@ import {
   useEffect,
   useState,
   useCallback,
+  useMemo,
   useRef,
   type ReactNode,
 } from 'react';
@@ -186,12 +187,23 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         return next;
       });
       if (supabase && restaurant) {
-        supabase
-          .from('orders')
-          .update({ status: newStatus })
-          .eq('restaurant_id', restaurant.id)
-          .eq('order_number', orderNumber)
-          .then(() => {});
+        const restaurantId = restaurant.id;
+        void (async () => {
+          try {
+            await supabase
+              .from('orders')
+              .update({ status: newStatus })
+              .eq('restaurant_id', restaurantId)
+              .eq('order_number', orderNumber)
+              .throwOnError();
+          } catch (error) {
+            // The optimistic update above would otherwise leave the board showing
+            // a status that was never persisted, with no signal to the user.
+            console.error('Failed to update order status', error);
+            toast.error('Could not update order status. Please retry.');
+            ordersFullRefreshRef.current?.();
+          }
+        })();
       }
     },
     [restaurant?.id]
@@ -537,9 +549,46 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    ordersFullRefreshRef.current = () => {
-      void load('refresh').catch((err) => console.error('Failed to refresh orders/tables', err));
+    /**
+     * Coalesces refreshes. `load('refresh')` re-reads every visible order with
+     * its line items, and realtime fires one event per order INSERT/UPDATE/DELETE
+     * and per table change — a burst of orders, or the admin marking several
+     * orders served, previously issued that full query once per event, all
+     * concurrently. Requests arriving during a burst collapse into a single
+     * trailing reload, so the data shown is identical while the query count is
+     * bounded.
+     */
+    let refreshDebounceTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let refreshInFlight = false;
+    let refreshQueued = false;
+    const runCoalescedRefresh = async () => {
+      if (refreshInFlight) {
+        refreshQueued = true;
+        return;
+      }
+      refreshInFlight = true;
+      try {
+        await load('refresh');
+      } catch (err) {
+        console.error('Failed to refresh orders/tables', err);
+      } finally {
+        refreshInFlight = false;
+        if (refreshQueued) {
+          refreshQueued = false;
+          void runCoalescedRefresh();
+        }
+      }
     };
+    const requestRefresh = (delayMs = 150) => {
+      if (effectLoadVersion !== loadVersionRef.current) return;
+      if (refreshDebounceTimer) window.clearTimeout(refreshDebounceTimer);
+      refreshDebounceTimer = window.setTimeout(() => {
+        refreshDebounceTimer = null;
+        void runCoalescedRefresh();
+      }, delayMs);
+    };
+
+    ordersFullRefreshRef.current = () => requestRefresh(0);
 
     let initialLoadAttemptDone = false;
     void load('initial').finally(() => {
@@ -556,7 +605,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         reason,
       });
       pollInterval = window.setInterval(() => {
-        void load('refresh');
+        void runCoalescedRefresh();
       }, 3000);
     };
     const stopPollingFallback = () => {
@@ -659,7 +708,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
                   restaurantId: restaurant.id,
                   extracted,
                 });
-                void load('refresh');
+                requestRefresh(0);
                 return;
               }
 
@@ -674,11 +723,8 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
 
             if (nextPayload.id) seenOrderIdsRef.current.add(nextPayload.id);
             notifyNewOrder(nextPayload);
-            try {
-              await load('refresh');
-            } catch (err) {
-              console.error('Failed to refresh orders after realtime insert', err);
-            }
+            // A new order should appear promptly, so skip the debounce window.
+            requestRefresh(0);
           };
 
           void handleInsert().catch((err) => {
@@ -696,9 +742,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         },
         () => {
           // Keeps status changes (preparing/served) in sync across open admin tabs.
-          void load('refresh').catch((err) =>
-            console.error('Failed to refresh orders after realtime update', err)
-          );
+          requestRefresh();
         }
       )
       .on(
@@ -710,9 +754,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
           filter: `restaurant_id=eq.${restaurant.id}`,
         },
         () => {
-          void load('refresh').catch((err) =>
-            console.error('Failed to refresh orders after realtime delete', err)
-          );
+          requestRefresh();
         }
       )
       .on(
@@ -729,7 +771,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
             ((payload?.old ?? {}) as Partial<{ restaurant_id: string | null }>).restaurant_id ??
             null;
           if (nextRid && nextRid !== restaurant.id) return;
-          void load('refresh').catch((err) => console.error('Failed to refresh tables after realtime change', err));
+          requestRefresh();
         }
       )
       .subscribe((status) => {
@@ -759,9 +801,7 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         visibilityRefreshTimer = null;
         if (effectLoadVersion !== loadVersionRef.current) return;
         if (document.visibilityState !== 'visible') return;
-        void load('refresh').catch((err) =>
-          console.error('Failed to refresh orders/tables on tab visible', err)
-        );
+        void runCoalescedRefresh();
       }, 300);
     };
     const handleResume = () => {
@@ -782,31 +822,58 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
         window.clearTimeout(visibilityRefreshTimer);
         visibilityRefreshTimer = null;
       }
+      if (refreshDebounceTimer) {
+        window.clearTimeout(refreshDebounceTimer);
+        refreshDebounceTimer = null;
+      }
       stopPollingFallback();
       if (subscribeWatchdog) window.clearTimeout(subscribeWatchdog);
       sub.unsubscribe();
     };
   }, [restaurant?.id, notifyNewOrder]);
 
-  const value: OrdersState = {
-    orders,
-    tables,
-    tableStatusPending,
-    initialLoading,
-    refreshing,
-    loading: initialLoading,
-    notifications,
-    setOrders,
-    setTables,
-    updateOrderStatus,
-    hideServedOrders,
-    abandonOrder,
-    updateTableStatus,
-    updateTableSeats,
-    pushNotification,
-    markAllNotificationsRead,
-    clearNotifications,
-  };
+  // Without memoization this object was a new identity on every provider render,
+  // so every consumer of useOrders() (order board, tables grid, headers) re-rendered
+  // on any unrelated state change here.
+  const value = useMemo<OrdersState>(
+    () => ({
+      orders,
+      tables,
+      tableStatusPending,
+      initialLoading,
+      refreshing,
+      loading: initialLoading,
+      notifications,
+      setOrders,
+      setTables,
+      updateOrderStatus,
+      hideServedOrders,
+      abandonOrder,
+      updateTableStatus,
+      updateTableSeats,
+      pushNotification,
+      markAllNotificationsRead,
+      clearNotifications,
+    }),
+    [
+      orders,
+      tables,
+      tableStatusPending,
+      initialLoading,
+      refreshing,
+      notifications,
+      setOrders,
+      setTables,
+      updateOrderStatus,
+      hideServedOrders,
+      abandonOrder,
+      updateTableStatus,
+      updateTableSeats,
+      pushNotification,
+      markAllNotificationsRead,
+      clearNotifications,
+    ]
+  );
 
   return (
     <OrdersContext.Provider value={value}>{children}</OrdersContext.Provider>

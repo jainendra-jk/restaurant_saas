@@ -40,8 +40,8 @@ Deno.serve(async (req) => {
   try {
     event = await stripe.webhooks.constructEventAsync(body, sig, secret);
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "verify failed";
-    return jsonResponse({ error: msg }, 400);
+    console.error("stripe-webhook: signature verification failed", e);
+    return jsonResponse({ error: "Signature verification failed" }, 400);
   }
 
   const admin = createClient(supabaseUrl, serviceKey);
@@ -65,7 +65,7 @@ Deno.serve(async (req) => {
         : session.customer?.id;
       const maxTables = planToMaxTables(planTier);
 
-      await upsertSaasEntitlement(admin, {
+      const { error } = await upsertSaasEntitlement(admin, {
         user_id: userId,
         plan_tier: planTier,
         max_tables: maxTables,
@@ -74,6 +74,12 @@ Deno.serve(async (req) => {
         stripe_customer_id: customerId ?? null,
         stripe_subscription_id: subId ?? null,
       });
+      // Returning 200 on a failed write would drop the entitlement permanently,
+      // since Stripe only retries non-2xx responses.
+      if (error) {
+        console.error("stripe-webhook: entitlement upsert failed", error.message);
+        return jsonResponse({ error: "Failed to persist entitlement" }, 500);
+      }
     }
 
     if (event.type === "customer.subscription.updated" || event.type === "customer.subscription.deleted") {
@@ -88,7 +94,7 @@ Deno.serve(async (req) => {
         ? "canceled"
         : mapStripeStatus(sub.status);
 
-      await upsertSaasEntitlement(admin, {
+      const { error } = await upsertSaasEntitlement(admin, {
         user_id: userId,
         plan_tier: planTier,
         max_tables: maxTables,
@@ -97,10 +103,14 @@ Deno.serve(async (req) => {
         stripe_customer_id: typeof sub.customer === "string" ? sub.customer : sub.customer?.id ?? null,
         stripe_subscription_id: sub.id,
       });
+      if (error) {
+        console.error("stripe-webhook: entitlement upsert failed", error.message);
+        return jsonResponse({ error: "Failed to persist entitlement" }, 500);
+      }
     }
   } catch (e) {
-    const msg = e instanceof Error ? e.message : "handler error";
-    return jsonResponse({ error: msg }, 500);
+    console.error("stripe-webhook: handler error", e);
+    return jsonResponse({ error: "Handler error" }, 500);
   }
 
   return jsonResponse({ received: true });

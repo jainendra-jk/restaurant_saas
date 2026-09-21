@@ -142,6 +142,41 @@ function mergeWithDefaults(parsed: Record<string, unknown>, restaurantName: stri
   return ensurePrimaryValid(details);
 }
 
+/**
+ * Gateway secret material must never be persisted.
+ *
+ * `razorpay.keySecret`, `stripe.secretKey` and both webhook secrets are
+ * full-privilege credentials for the tenant's payment gateway. They are only
+ * used to gate the local "Connect" button and are never transmitted anywhere,
+ * so keeping them in `localStorage` bought nothing and left them readable by
+ * any XSS, browser extension, or anyone on a shared device. They stay in
+ * component/provider state for the current session and are stripped on write.
+ */
+function withoutSecrets(details: PaymentDetails): PaymentDetails {
+  return {
+    ...details,
+    razorpay: { ...details.razorpay, keySecret: '', webhookSecret: '' },
+    stripe: { ...details.stripe, secretKey: '', webhookSecret: '' },
+  };
+}
+
+/** Same redaction over a raw parsed blob, preserving any unrelated keys. */
+function stripStoredSecrets(raw: Record<string, unknown>): Record<string, unknown> {
+  const redact = (group: unknown, keys: string[]): unknown => {
+    if (!group || typeof group !== 'object') return group;
+    const next = { ...(group as Record<string, unknown>) };
+    for (const k of keys) {
+      if (k in next) next[k] = '';
+    }
+    return next;
+  };
+  return {
+    ...raw,
+    razorpay: redact(raw.razorpay, ['keySecret', 'webhookSecret']),
+    stripe: redact(raw.stripe, ['secretKey', 'webhookSecret']),
+  };
+}
+
 export function getPaymentModeFromStorage(): PaymentMode {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
@@ -159,7 +194,14 @@ function loadFromStorage(restaurantName: string): { details: PaymentDetails | nu
     if (!raw) return { details: null, paymentMode: 'merchant' };
     const parsed = JSON.parse(raw) as Record<string, unknown>;
     const paymentMode: PaymentMode = parsed.paymentMode === 'pay_at_table' ? 'pay_at_table' : 'merchant';
-    const details = mergeWithDefaults(parsed, restaurantName);
+    const details = withoutSecrets(mergeWithDefaults(parsed, restaurantName));
+    // Rewrite immediately so secrets written by older builds are erased from
+    // this browser rather than lingering until the next save.
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...details, paymentMode }));
+    } catch {
+      // ignore
+    }
     return { details, paymentMode };
   } catch {
     return { details: null, paymentMode: 'merchant' };
@@ -215,11 +257,13 @@ export function PaymentProvider({ children }: { children: ReactNode }) {
   const savePayment = useCallback(
     (details: PaymentDetails) => {
       const normalized = ensurePrimaryValid(details);
+      // Keep secrets in memory for this session so the UI is unchanged, but
+      // never write them to disk.
       setStore((prev) => ({ ...prev, details: normalized }));
       try {
         localStorage.setItem(
           STORAGE_KEY,
-          JSON.stringify({ ...normalized, paymentMode: store.paymentMode })
+          JSON.stringify({ ...withoutSecrets(normalized), paymentMode: store.paymentMode })
         );
       } catch {
         // ignore
@@ -233,7 +277,12 @@ export function PaymentProvider({ children }: { children: ReactNode }) {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       const current = raw ? (JSON.parse(raw) as Record<string, unknown>) : {};
-      localStorage.setItem(STORAGE_KEY, JSON.stringify({ ...current, paymentMode: mode }));
+      // This rewrites the whole blob, so strip any secrets an older build left
+      // behind rather than writing them back out.
+      localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ ...stripStoredSecrets(current), paymentMode: mode })
+      );
     } catch {
       // ignore
     }

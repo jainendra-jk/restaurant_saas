@@ -1,8 +1,53 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.8";
 import { corsHeaders, jsonResponse } from "../_shared/cors.ts";
 
 function env(name: string): string | undefined {
   const v = Deno.env.get(name);
   return v?.trim() || undefined;
+}
+
+/**
+ * Escape a caller-supplied value before it is interpolated into the email HTML.
+ * Every field of the request body reaches the template, so without this an
+ * unauthenticated caller could inject arbitrary markup (including links) into a
+ * mail sent from the verified Ratolabs domain.
+ */
+function esc(value: string | undefined): string | undefined {
+  if (value == null) return undefined;
+  return value
+    .slice(0, MAX_FIELD_LEN)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
+const MAX_FIELD_LEN = 200;
+
+/** Only same-origin-ish absolute http(s) URLs may become the CTA href. */
+function safeHttpUrl(value: string | undefined): string {
+  const raw = value?.trim().replace(/\/+$/, "") ?? "";
+  if (!raw) return "";
+  try {
+    const u = new URL(raw);
+    if (u.protocol !== "http:" && u.protocol !== "https:") return "";
+    return u.origin + (u.pathname === "/" ? "" : u.pathname);
+  } catch {
+    return "";
+  }
+}
+
+/** Resolve the caller's Supabase user from the Authorization header. */
+async function getUserFromRequest(req: Request) {
+  const token = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim() ?? "";
+  if (!token) return null;
+  const url = env("SUPABASE_URL");
+  const anon = env("SUPABASE_ANON_KEY");
+  if (!url || !anon) return null;
+  const { data, error } = await createClient(url, anon).auth.getUser(token);
+  if (error || !data.user) return null;
+  return data.user;
 }
 
 interface WelcomeEmailBody {
@@ -31,26 +76,22 @@ function row(label: string, value: string | undefined): string {
 }
 
 function buildHtml(body: WelcomeEmailBody): string {
-  const {
-    restaurantName,
-    ownerName,
-    email,
-    phone,
-    address,
-    city,
-    state,
-    pincode,
-    gstNumber,
-    fssaiNumber,
-    tables,
-    restaurantSlug,
-    adminDashboardOrigin,
-  } = body;
+  // Escape once, here, so no interpolation site below can forget to.
+  const restaurantName = esc(body.restaurantName) ?? "";
+  const ownerName = esc(body.ownerName) ?? "";
+  const email = esc(body.email);
+  const phone = esc(body.phone);
+  const address = esc(body.address);
+  const gstNumber = esc(body.gstNumber);
+  const fssaiNumber = esc(body.fssaiNumber);
+  const restaurantSlug = esc(body.restaurantSlug);
 
-  const tableCount = parseInt(tables, 10) || 0;
-  const locationParts = [city, state, pincode].filter(Boolean).join(", ");
+  const tableCount = parseInt(body.tables, 10) || 0;
+  const locationParts = esc(
+    [body.city, body.state, body.pincode].filter(Boolean).join(", "),
+  );
 
-  const dashboardUrl = adminDashboardOrigin?.trim().replace(/\/+$/, "") || "";
+  const dashboardUrl = safeHttpUrl(body.adminDashboardOrigin);
   const dashboardBtn = dashboardUrl
     ? `
     <tr>
@@ -168,6 +209,15 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Method not allowed" }, 405);
   }
 
+  // Without this check the function is an open relay: anyone could send
+  // attacker-authored mail from the verified Ratolabs sending domain to any
+  // address. The only caller (onboarding) invokes it after a successful signup,
+  // so supabase-js always attaches the user's session JWT here.
+  const user = await getUserFromRequest(req);
+  if (!user) {
+    return jsonResponse({ error: "Unauthorized" }, 401);
+  }
+
   const resendApiKey = env("RESEND_API_KEY");
   const fromEmail = env("RESEND_FROM_EMAIL") ?? "noreply@ratolabs.com";
 
@@ -182,8 +232,12 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "Invalid JSON body" }, 400);
   }
 
-  if (!body.email?.trim() || !body.restaurantName?.trim()) {
+  const recipient = body.email?.trim() ?? "";
+  if (!recipient || !body.restaurantName?.trim()) {
     return jsonResponse({ error: "email and restaurantName are required" }, 400);
+  }
+  if (recipient.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recipient)) {
+    return jsonResponse({ error: "Invalid email" }, 400);
   }
 
   const html = buildHtml(body);
@@ -196,8 +250,8 @@ Deno.serve(async (req) => {
     },
     body: JSON.stringify({
       from: fromEmail,
-      to: [body.email.trim()],
-      subject: `Your restaurant "${body.restaurantName}" is live on Ratolabs!`,
+      to: [recipient],
+      subject: `Your restaurant "${body.restaurantName.trim().slice(0, 120)}" is live on Ratolabs!`,
       html,
     }),
   });

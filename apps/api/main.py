@@ -4,15 +4,19 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from config import settings
+from http_client import lifespan
 from routers import auth, menu, qr
 
-_docs = "/docs" if settings.api_enable_docs else None
+_docs_enabled = settings.api_enable_docs
 app = FastAPI(
     title="Restaurant SaaS API",
     version="1.0.0",
-    docs_url=_docs,
-    redoc_url=_docs,
-    openapi_url=_docs,
+    # Each of these needs its own path. They were all set to "/docs", so the
+    # OpenAPI JSON route shadowed the Swagger UI route and /docs served raw JSON.
+    docs_url="/docs" if _docs_enabled else None,
+    redoc_url="/redoc" if _docs_enabled else None,
+    openapi_url="/openapi.json" if _docs_enabled else None,
+    lifespan=lifespan,
 )
 
 app.add_middleware(

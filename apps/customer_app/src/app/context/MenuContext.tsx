@@ -296,6 +296,7 @@ async function fetchMenuStateForRestaurant(rest: RestRow, supa: NonNullable<type
       loading: false,
       error: null,
       restaurantId: rest.id,
+      menuUpdatedAt: null,
     };
   }
 
@@ -373,6 +374,7 @@ async function fetchMenuStateForRestaurant(rest: RestRow, supa: NonNullable<type
     loading: false,
     error: null,
     restaurantId: rest.id,
+    menuUpdatedAt: null,
   };
 }
 
@@ -395,6 +397,8 @@ export function MenuProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     let channel: ReturnType<typeof supabase.channel> | null = null;
     let hasHydratedOnce = false;
+    /** Restaurant id resolved from the slug, reused by the focus handler. */
+    const resolvedRestaurantIdRef = { current: null as string | null };
     let pollInterval: ReturnType<typeof window.setInterval> | null = null;
     let subscribeWatchdog: ReturnType<typeof window.setTimeout> | null = null;
 
@@ -485,6 +489,7 @@ export function MenuProvider({ children }: { children: ReactNode }) {
       }
 
       const rid = rest.id;
+      resolvedRestaurantIdRef.current = rid;
       let refetchTimer: ReturnType<typeof window.setTimeout> | null = null;
       const scheduleRefetch = () => {
         if (cancelled) return;
@@ -547,49 +552,15 @@ export function MenuProvider({ children }: { children: ReactNode }) {
             schema: "public",
             table: "menu_items",
           },
-          async (payload) => {
-            const newRow =
-              (payload.new as { id?: string; category_id?: string } | null) ?? null;
-            const oldRow =
-              (payload.old as { id?: string; category_id?: string } | null) ?? null;
-
-            const cidFromPayload = newRow?.category_id ?? oldRow?.category_id;
-            let cid = cidFromPayload;
-
-            // Some realtime payloads can omit full columns; recover category_id so we can decide
-            // whether the change affects the current restaurant.
-            if (!cid) {
-              const itemId = newRow?.id ?? oldRow?.id;
-              if (!itemId) {
-                // If we can't even identify the item, still refetch to keep the menu consistent.
-                scheduleRefetch();
-                return;
-              }
-
-              const { data: mi } = await supabase
-                .from("menu_items")
-                .select("category_id")
-                .eq("id", itemId)
-                .maybeSingle();
-
-              cid = mi?.category_id ?? undefined;
-              if (!cid) {
-                scheduleRefetch();
-                return;
-              }
-            }
-            const { data: mc } = await supabase
-              .from("menu_categories")
-              .select("id")
-              .eq("id", cid)
-              .eq("restaurant_id", rid)
-              .maybeSingle();
-            if (mc) {
-              scheduleRefetch();
-              return;
-            }
-            // During menu replace operations or partial payloads, we may not be able to confirm
-            // membership quickly. Refetch anyway so `is_available=false` items disappear.
+          () => {
+            // `menu_items` has no restaurant_id, so this subscription is
+            // necessarily unfiltered and fires for other tenants too. The
+            // previous implementation spent up to two extra round-trips trying to
+            // decide whether the change belonged to this restaurant, then called
+            // scheduleRefetch() on every branch regardless — including the
+            // "confirmed to be another tenant" branch. Dropping the lookups keeps
+            // behaviour identical while removing two queries per event.
+            // scheduleRefetch() is itself debounced and re-reads the whole menu.
             scheduleRefetch();
           }
         )
@@ -614,15 +585,19 @@ export function MenuProvider({ children }: { children: ReactNode }) {
       }, 5000);
     })();
 
+    // Refresh on focus, but reuse the already-resolved restaurant id instead of
+    // re-querying by slug, and throttle: mobile browsers fire `focus` on every
+    // keyboard dismissal and app switch, and each one used to cost a slug lookup
+    // plus a full menu refetch.
+    const FOCUS_REFETCH_MIN_INTERVAL_MS = 30_000;
+    let lastFocusRefetchAt = Date.now();
     const onFocus = () => {
-      void (async () => {
-        const { data: rest } = await supabase
-          .from("restaurants")
-          .select("id")
-          .eq("slug", slug)
-          .maybeSingle();
-        if (rest?.id && !cancelled) void refetchByRestaurantId(rest.id);
-      })();
+      const rid = resolvedRestaurantIdRef.current;
+      if (!rid || cancelled) return;
+      const now = Date.now();
+      if (now - lastFocusRefetchAt < FOCUS_REFETCH_MIN_INTERVAL_MS) return;
+      lastFocusRefetchAt = now;
+      void refetchByRestaurantId(rid);
     };
     window.addEventListener("focus", onFocus);
 
