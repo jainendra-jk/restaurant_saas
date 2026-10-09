@@ -558,7 +558,10 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
      * trailing reload, so the data shown is identical while the query count is
      * bounded.
      */
-    let refreshDebounceTimer: ReturnType<typeof window.setTimeout> | null = null;
+    // Explicitly `number`: @types/node is in scope, so `ReturnType<typeof
+    // window.setTimeout>` resolved to NodeJS.Timeout and clashed with the
+    // number that window.setTimeout actually returns in the browser.
+    let refreshDebounceTimer: number | null = null;
     let refreshInFlight = false;
     let refreshQueued = false;
     const runCoalescedRefresh = async () => {
@@ -595,9 +598,9 @@ export function OrdersProvider({ children }: { children: ReactNode }) {
       initialLoadAttemptDone = true;
     });
 
-    let pollInterval: ReturnType<typeof window.setInterval> | null = null;
-    let subscribeWatchdog: ReturnType<typeof window.setTimeout> | null = null;
-    let visibilityRefreshTimer: ReturnType<typeof window.setTimeout> | null = null;
+    let pollInterval: number | null = null;
+    let subscribeWatchdog: number | null = null;
+    let visibilityRefreshTimer: number | null = null;
     const startPollingFallback = (reason: string) => {
       if (pollInterval) return;
       console.warn('[orders] realtime not subscribed; starting polling fallback', {

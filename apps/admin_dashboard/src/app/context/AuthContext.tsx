@@ -37,7 +37,16 @@ export interface RestaurantInfo {
   sessionTimeoutMinutes: number;
 }
 
-export type AccessState = 'ready' | 'no_subscription' | 'onboarding_incomplete';
+/**
+ * `unknown` means the entitlement has not been resolved YET — it is not a
+ * verdict. Collapsing it into `no_subscription` was a real bug: `setUser()`
+ * fires immediately while the entitlement query is awaited after it, so React
+ * renders with a signed-in user, `loading` already false, and the entitlement
+ * flag still at its initial `false`. `RequireAuth` read that as "no
+ * subscription" and bounced the user to /login (or clean off to the checkout
+ * URL) in the middle of an ordinary navigation.
+ */
+export type AccessState = 'ready' | 'no_subscription' | 'onboarding_incomplete' | 'unknown';
 
 interface AuthState {
   user: { id: string; email?: string } | null;
@@ -71,6 +80,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<{ id: string; email?: string } | null>(null);
   const [restaurant, setRestaurant] = useState<RestaurantInfo | null>(null);
   const [hasActiveEntitlement, setHasActiveEntitlement] = useState(false);
+  /// Has the entitlement query completed for the current user at least once?
+  /// Until it has, access is `unknown` rather than denied.
+  const [entitlementResolved, setEntitlementResolved] = useState(false);
   const [hasCompletedOnboarding, setHasCompletedOnboarding] = useState(false);
   const [accessToken, setAccessToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -149,6 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .maybeSingle();
     const status = data?.status;
     setHasActiveEntitlement(status === 'active' || status === 'trialing');
+    setEntitlementResolved(true);
   }, []);
 
   useEffect(() => {
@@ -175,6 +188,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setRestaurant(null);
         setHasCompletedOnboarding(false);
         setHasActiveEntitlement(false);
+        setEntitlementResolved(false);
         return;
       }
       if (hydratedUserIdRef.current === sessionUser.id) return;
@@ -320,10 +334,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const markActivity = () => {
       lastActivityAtRef.current = Date.now();
     };
-    const events: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'click', 'visibilitychange'];
-    events.forEach((eventName) => window.addEventListener(eventName, markActivity));
+    const windowEvents: (keyof WindowEventMap)[] = ['mousemove', 'keydown', 'click'];
+    windowEvents.forEach((eventName) => window.addEventListener(eventName, markActivity));
+    // `visibilitychange` fires on DOCUMENT, not window. Registered on window
+    // it never fired at all, so coming back to the tab was not counted as
+    // activity and the inactivity timer kept running against an active user.
+    document.addEventListener('visibilitychange', markActivity);
     return () => {
-      events.forEach((eventName) => window.removeEventListener(eventName, markActivity));
+      windowEvents.forEach((eventName) => window.removeEventListener(eventName, markActivity));
+      document.removeEventListener('visibilitychange', markActivity);
     };
   }, [user?.id]);
 
@@ -360,11 +379,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     restaurant,
     hasActiveEntitlement,
     hasCompletedOnboarding,
-    accessState: !hasActiveEntitlement
-      ? 'no_subscription'
-      : hasCompletedOnboarding
-        ? 'ready'
-        : 'onboarding_incomplete',
+    accessState: !entitlementResolved
+      ? 'unknown'
+      : !hasActiveEntitlement
+        ? 'no_subscription'
+        : hasCompletedOnboarding
+          ? 'ready'
+          : 'onboarding_incomplete',
     accessToken,
     loading,
     signIn,

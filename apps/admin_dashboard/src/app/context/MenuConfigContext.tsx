@@ -420,7 +420,7 @@ export function MenuConfigProvider({ children }: { children: ReactNode }) {
       const restBranding = (restaurant?.branding ?? {}) as Record<string, string>;
       return {
         palette: restaurant?.palette?.primary
-          ? (restaurant.palette as MenuConfig['palette'])
+          ? (restaurant.palette as unknown as MenuConfig['palette'])
           : DEFAULT_CONFIG.palette,
         branding: {
           restaurantName: restaurant?.name ?? DEFAULT_CONFIG.branding.restaurantName,

@@ -203,6 +203,9 @@ export function Login() {
     // Password recovery: verifyOtp(recovery) creates a session before the user sets a new password.
     // Stay on /login until the dialog closes (success path signs out; dismiss may leave a recovery session).
     if (forgotOpen) return;
+    // Entitlement not resolved yet — wait. Redirecting now would pick a
+    // destination from an unknown access state.
+    if (accessState === 'unknown') return;
     if (accessState === 'no_subscription') {
       hasNavigatedRef.current = false;
       return;

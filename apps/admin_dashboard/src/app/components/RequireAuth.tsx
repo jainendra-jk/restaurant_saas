@@ -14,6 +14,13 @@ export function RequireAuth({ children }: { children: React.ReactNode }) {
     return <AdminShellSkeleton />;
   }
 
+  // Entitlement not resolved yet. Waiting is correct; redirecting is not —
+  // "we have not checked" is not "you do not have access", and treating it
+  // as such threw signed-in users back to /login mid-navigation.
+  if (accessState === 'unknown') {
+    return <AdminShellSkeleton />;
+  }
+
   if (!user) {
     return <Navigate to="/login" state={{ from: location }} replace />;
   }

@@ -279,8 +279,10 @@ async function fetchMenuStateForRestaurant(rest: RestRow, supa: NonNullable<type
 
   if (!cats?.length) {
     const branding = (rest.branding as Partial<Branding>) ?? {};
-    const pal = (rest.palette as ConfigPalette) ?? {};
-    if (Object.keys(pal).length) applyPalette(pal);
+    // No `?? {}`: an empty object is not a ConfigPalette, and the
+    // non-empty check below would still let a PARTIAL palette through.
+    const pal = rest.palette as ConfigPalette | undefined;
+    if (pal && Object.keys(pal).length) applyPalette(pal);
     const billingAddressLines = buildBillingAddressLines(rest);
     const billingPhone = cleanLine(rest.phone) ?? "";
     return {
@@ -356,8 +358,10 @@ async function fetchMenuStateForRestaurant(rest: RestRow, supa: NonNullable<type
   );
 
   const branding = (rest.branding as Partial<Branding>) ?? {};
-  const pal = (rest.palette as ConfigPalette) ?? {};
-  if (Object.keys(pal).length) applyPalette(pal);
+  // No `?? {}`: an empty object is not a ConfigPalette, and the
+  // non-empty check below would still let a PARTIAL palette through.
+  const pal = rest.palette as ConfigPalette | undefined;
+  if (pal && Object.keys(pal).length) applyPalette(pal);
   const billingAddressLines = buildBillingAddressLines(rest);
   const billingPhone = cleanLine(rest.phone) ?? "";
 

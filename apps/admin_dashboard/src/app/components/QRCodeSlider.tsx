@@ -62,12 +62,18 @@ export function QRCodeSlider({
     let alive = true;
     setQrLoading(true);
     setLazyFetchTried(true);
-    void supabase
+    // Wrapped in Promise.resolve: the Supabase query builder is a thenable
+    // whose .then() is typed PromiseLike<void>, which has no .catch. Chaining
+    // .catch directly was a type error and left failure handling unreliable —
+    // a rejected fetch could leave the slider spinning forever.
+    void Promise.resolve(
+      supabase
       .from('tables')
       .select('qr_png_base64')
       .eq('restaurant_id', restaurant.id)
       .eq('id', tableId)
       .maybeSingle()
+    )
       .then(({ data }) => {
         if (!alive) return;
         const value = typeof data?.qr_png_base64 === 'string' ? data.qr_png_base64.trim() : '';
